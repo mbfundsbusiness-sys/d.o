@@ -19,7 +19,6 @@ export function AnchorForm({ onLogged }: AnchorFormProps) {
   const [wakeTime, setWakeTime] = useState('');
   const [applicationsSent, setApplicationsSent] = useState('0');
   const [tradingInPlan, setTradingInPlan] = useState(false);
-  const [botcouncilChecked, setBotcouncilChecked] = useState(false);
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +35,6 @@ export function AnchorForm({ onLogged }: AnchorFormProps) {
       wake_time: wakeTime || null,
       applications_sent: parseInt(applicationsSent, 10) || 0,
       trading_in_plan: tradingInPlan,
-      botcouncil_checked: botcouncilChecked,
       note: note || null,
     };
 
@@ -51,7 +49,6 @@ export function AnchorForm({ onLogged }: AnchorFormProps) {
     setWakeTime('');
     setApplicationsSent('0');
     setTradingInPlan(false);
-    setBotcouncilChecked(false);
     setNote('');
     setLoading(false);
     onLogged();
@@ -98,20 +95,12 @@ export function AnchorForm({ onLogged }: AnchorFormProps) {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <AnchorToggle
-              label="Trading in-plan"
-              description="Did your trading stay within your plan today?"
-              checked={tradingInPlan}
-              onChange={setTradingInPlan}
-            />
-            <AnchorToggle
-              label="BotCouncil check"
-              description="Light maintenance on your product done?"
-              checked={botcouncilChecked}
-              onChange={setBotcouncilChecked}
-            />
-          </div>
+          <AnchorToggle
+            label="Trading in-plan"
+            description="Did your trading stay within your plan today?"
+            checked={tradingInPlan}
+            onChange={setTradingInPlan}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="note">Note (optional)</Label>

@@ -55,39 +55,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Amount and type required' }, { status: 400 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
-    }
-
-    // Auto-categorise via Anthropic
-    const categoriseResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 20,
-        system: CATEGORISE_SYSTEM,
-        messages: [
-          {
-            role: 'user',
-            content: `Type: ${type}\nAmount: ${amount}\nNote: ${note || 'No note provided'}`,
-          },
-        ],
-      }),
-    });
-
+    // Auto-categorise via Anthropic if configured; otherwise fall back to 'other'
+    // and still save the entry — a missing/failed AI call should never block logging.
     let category = 'other';
-    if (categoriseResponse.ok) {
-      const data = await categoriseResponse.json();
-      const raw = data.content?.[0]?.text?.trim().toLowerCase() ?? '';
-      const validCategories = ['food', 'transport', 'job search', 'trading', 'rent', 'subscriptions', 'income', 'personal', 'other'];
-      if (validCategories.includes(raw)) {
-        category = raw;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (apiKey) {
+      const categoriseResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 20,
+          system: CATEGORISE_SYSTEM,
+          messages: [
+            {
+              role: 'user',
+              content: `Type: ${type}\nAmount: ${amount}\nNote: ${note || 'No note provided'}`,
+            },
+          ],
+        }),
+      });
+
+      if (categoriseResponse.ok) {
+        const data = await categoriseResponse.json();
+        const raw = data.content?.[0]?.text?.trim().toLowerCase() ?? '';
+        const validCategories = ['food', 'transport', 'job search', 'trading', 'rent', 'subscriptions', 'income', 'personal', 'other'];
+        if (validCategories.includes(raw)) {
+          category = raw;
+        }
       }
     }
 

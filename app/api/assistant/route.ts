@@ -42,13 +42,14 @@ export async function POST(req: NextRequest) {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
-    const [anchorLogs, jobApps, tradingSessions, gymSessions, languageSessions, jobSearchSessions, conversationHistory] = await Promise.all([
+    const [anchorLogs, jobApps, tradingSessions, gymSessions, languageSessions, jobSearchSessions, botCouncilChecks, conversationHistory] = await Promise.all([
       supabaseServer.from('anchor_logs').select('*').eq('user_id', userId).gte('created_at', sevenDaysAgoISO).order('log_date', { ascending: false }),
       supabaseServer.from('job_applications').select('*').eq('user_id', userId).gte('created_at', sevenDaysAgoISO).order('updated_at', { ascending: false }),
       supabaseServer.from('trading_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
       supabaseServer.from('gym_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
       supabaseServer.from('language_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
       supabaseServer.from('job_search_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
+      supabaseServer.from('botcouncil_checks').select('*').eq('user_id', userId).gte('checked_at', sevenDaysAgoISO).order('checked_at', { ascending: false }),
       supabaseServer.from('assistant_conversations').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(20),
     ]);
 
@@ -56,8 +57,8 @@ export async function POST(req: NextRequest) {
     const contextParts: string[] = [];
 
     if (anchorLogs.data && anchorLogs.data.length > 0) {
-      contextParts.push(`=== Daily Anchor Logs (last 7 days) ===\n${anchorLogs.data.map((l: { log_date: string; wake_time: string | null; applications_sent: number; trading_in_plan: boolean; botcouncil_checked: boolean; note: string | null }) =>
-        `${l.log_date}: wake=${l.wake_time || '—'}, apps=${l.applications_sent}, in_plan=${l.trading_in_plan}, bc_check=${l.botcouncil_checked}${l.note ? `, note="${l.note}"` : ''}`
+      contextParts.push(`=== Daily Anchor Logs (last 7 days) ===\n${anchorLogs.data.map((l: { log_date: string; wake_time: string | null; applications_sent: number; trading_in_plan: boolean; note: string | null }) =>
+        `${l.log_date}: wake=${l.wake_time || '—'}, apps=${l.applications_sent}, in_plan=${l.trading_in_plan}${l.note ? `, note="${l.note}"` : ''}`
       ).join('\n')}`);
     }
 
@@ -93,6 +94,12 @@ export async function POST(req: NextRequest) {
       contextParts.push(`=== Job Search Work Blocks (last 7 days) ===\n${completed.map((s: { started_at: string; duration_min: number | null }) =>
         `${new Date(s.started_at).toLocaleDateString('en-GB')}: ${s.duration_min}min`
       ).join('\n') || 'No completed job search blocks'}`);
+    }
+
+    if (botCouncilChecks.data && botCouncilChecks.data.length > 0) {
+      contextParts.push(`=== BotCouncil Checks (last 7 days) ===\n${botCouncilChecks.data.map((c: { checked_at: string; status: string; note: string | null }) =>
+        `${new Date(c.checked_at).toLocaleDateString('en-GB')}: ${c.status}${c.note ? `, note="${c.note}"` : ''}`
+      ).join('\n')}`);
     }
 
     const contextStr = contextParts.length > 0

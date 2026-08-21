@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { ROADMAP_PHASES, type RoadmapPhase } from '@/lib/types/roadmap';
+import { computeAnchorStreak } from '@/lib/utils/streaks';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +26,7 @@ type RollupData = {
   tradingInPlanRate: number;
   // Gym
   gymSessionsThisWeek: number;
-  // BotCouncil (from anchor logs)
+  // BotCouncil
   botCouncilChecksThisWeek: number;
   // Anchor logs
   anchorStreak: number;
@@ -95,6 +96,7 @@ export default function RoadmapPage() {
       tradingRes,
       gymRes,
       anchorRes,
+      botCouncilRes,
     ] = await Promise.all([
       supabase.from('finance_entries').select('*'),
       supabase.from('prayer_logs').select('*'),
@@ -102,6 +104,7 @@ export default function RoadmapPage() {
       supabase.from('trading_sessions').select('*'),
       supabase.from('gym_sessions').select('*'),
       supabase.from('anchor_logs').select('*'),
+      supabase.from('botcouncil_checks').select('*'),
     ]);
 
     // Finance
@@ -133,9 +136,15 @@ export default function RoadmapPage() {
     // Anchor logs
     const anchorLogs = anchorRes.data ?? [];
     const anchorStreak = computeAnchorStreak(anchorLogs);
-    const botCouncilChecksThisWeek = anchorLogs.filter((l: { created_at: string; botcouncil_checked: boolean }) =>
-      new Date(l.created_at) >= weekAgo && l.botcouncil_checked
-    ).length;
+
+    // BotCouncil — distinct days with at least one healthy check, in the last 7 days
+    const botCouncilChecks = botCouncilRes.data ?? [];
+    const botCouncilDaysThisWeek = new Set(
+      botCouncilChecks
+        .filter((c: { checked_at: string; status: string }) => new Date(c.checked_at) >= weekAgo && c.status === 'healthy')
+        .map((c: { checked_at: string }) => c.checked_at.slice(0, 10))
+    );
+    const botCouncilChecksThisWeek = botCouncilDaysThisWeek.size;
 
     setRollup({
       netPosition: totalIn - totalOut,
@@ -325,43 +334,3 @@ function computePrayerStreak(logs: { log_date: string; prayer_name: string; comp
   return count;
 }
 
-function computeAnchorStreak(logs: { log_date: string; wake_time: string | null; applications_sent: number; trading_in_plan: boolean; botcouncil_checked: boolean }[]): number {
-  if (logs.length === 0) return 0;
-
-  const dayMap = new Map<string, boolean>();
-  for (const log of logs) {
-    const allHit =
-      !!log.wake_time &&
-      log.applications_sent >= 1 &&
-      log.trading_in_plan &&
-      log.botcouncil_checked;
-    if (allHit) dayMap.set(log.log_date, true);
-  }
-
-  if (dayMap.size === 0) return 0;
-
-  const sortedDays = Array.from(dayMap.keys()).sort().reverse();
-  const mostRecent = sortedDays[0];
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
-
-  if (mostRecent !== todayStr && mostRecent !== yesterdayStr) return 0;
-
-  let streak = 0;
-  const cursor = new Date(mostRecent + 'T00:00:00');
-  while (true) {
-    const cursorStr = cursor.toISOString().slice(0, 10);
-    if (dayMap.has(cursorStr)) {
-      streak++;
-      cursor.setDate(cursor.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-  return streak;
-}

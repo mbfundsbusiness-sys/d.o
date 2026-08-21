@@ -22,7 +22,6 @@ export type AnchorLog = {
   wake_time: string | null;
   applications_sent: number;
   trading_in_plan: boolean;
-  botcouncil_checked: boolean;
   note: string | null;
   created_at: string;
 };
@@ -56,7 +55,6 @@ export type AnchorLogInsert = {
   wake_time?: string | null;
   applications_sent?: number;
   trading_in_plan?: boolean;
-  botcouncil_checked?: boolean;
   note?: string | null;
 };
 
@@ -248,5 +246,99 @@ export type PrayerLog = {
   prayer_name: PrayerName;
   completed: boolean;
   completed_at: string | null;
+  created_at: string;
+};
+
+// --- BotCouncil types ---
+
+export type BotCouncilCheckStatus = 'healthy' | 'issue';
+
+export type BotCouncilCheck = {
+  id: string;
+  user_id: string;
+  status: BotCouncilCheckStatus;
+  note: string | null;
+  checked_at: string;
+  created_at: string;
+};
+
+export type BotCouncilTask = {
+  id: string;
+  user_id: string;
+  title: string;
+  completed: boolean;
+  completed_at: string | null;
+  created_at: string;
+};
+
+// --- Gym module types ---
+
+export type GymGoal = 'strength' | 'hypertrophy' | 'general_fitness' | 'endurance';
+export type GymExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+export type GymEquipment = 'full_gym' | 'home_dumbbells' | 'bodyweight';
+
+export type GymAssessment = {
+  id: string;
+  user_id: string;
+  goal: GymGoal;
+  experience_level: GymExperienceLevel;
+  days_per_week: number;
+  equipment: GymEquipment;
+  injuries_notes: string | null;
+  ai_summary: string | null;
+  created_at: string;
+};
+
+export type GymExercise = {
+  name: string;
+  sets: number;
+  reps: string;
+  rest_sec?: number;
+  notes?: string;
+};
+
+export type GymDayPlan = {
+  day_label: string;
+  focus: string;
+  exercises: GymExercise[];
+};
+
+export type GymPlanContent = {
+  intro?: string;
+  days: GymDayPlan[];
+  recovery_notes?: string;
+};
+
+export type GymPlan = {
+  id: string;
+  user_id: string;
+  week_number: number;
+  title: string;
+  is_deload: boolean;
+  content_json: GymPlanContent;
+  completed: boolean;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type GymCheckin = {
+  id: string;
+  user_id: string;
+  week_number: number;
+  soreness: number;
+  sleep_quality: number;
+  motivation: number;
+  pain_flag: boolean;
+  notes: string | null;
+  created_at: string;
+};
+
+export type GymPR = {
+  id: string;
+  user_id: string;
+  exercise: string;
+  value: string;
+  achieved_at: string;
+  note: string | null;
   created_at: string;
 };

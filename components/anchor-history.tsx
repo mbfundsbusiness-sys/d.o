@@ -2,7 +2,7 @@
 
 import type { AnchorLog } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, X, Clock, Send, Stethoscope } from 'lucide-react';
+import { Check, X, Clock, Send } from 'lucide-react';
 import { formatDateUK } from '@/lib/utils/dates';
 
 export function AnchorHistory({ logs }: { logs: AnchorLog[] }) {
@@ -59,11 +59,6 @@ export function AnchorHistory({ logs }: { logs: AnchorLog[] }) {
                 icon={Check}
                 label="In plan"
                 active={log.trading_in_plan}
-              />
-              <AnchorChip
-                icon={Stethoscope}
-                label="BC check"
-                active={log.botcouncil_checked}
               />
             </div>
 

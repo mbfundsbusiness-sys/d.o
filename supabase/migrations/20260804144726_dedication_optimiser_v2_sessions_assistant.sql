@@ -2,11 +2,17 @@
 # Dedication Optimiser — activity sessions + assistant conversations (v2)
 
 ## Purpose
-Adds tables for the universal activity timer (trading, gym, language, job search),
-the language learning module, and AI assistant conversation persistence.
-The activity timer pattern: a row is created with started_at on "Start", then
-ended_at + duration_min are written on "Complete". Reopening the app detects
-a row with started_at but NULL ended_at and resumes the live timer.
+Adds tables for the universal activity timer (trading, gym, language, job search)
+and AI assistant conversation persistence. The activity timer pattern: a row is
+created with started_at on "Start", then ended_at + duration_min are written on
+"Complete". Reopening the app detects a row with started_at but NULL ended_at
+and resumes the live timer.
+
+This migration replaces two earlier same-day migrations that both created these
+tables with `CREATE TABLE IF NOT EXISTS` — the second silently no-op'd against
+the first because the tables already existed, so `duration_min` never actually
+became `numeric(10,2)` and `assistant_conversations.role` never got its CHECK
+constraint. Squashed into one migration with the intended final schema.
 
 ## New Tables
 
@@ -15,7 +21,7 @@ a row with started_at but NULL ended_at and resumes the live timer.
 - `user_id` (uuid, owner, defaults to auth.uid())
 - `started_at` (timestamptz, when the session began — written immediately on Start)
 - `ended_at` (timestamptz, when the session completed — NULL means still running)
-- `duration_min` (integer, calculated minutes — NULL until completed)
+- `duration_min` (numeric(10,2), fractional minutes — NULL until completed)
 - `in_plan` (boolean, whether the trading session stayed within plan)
 - `note` (text, optional)
 - `created_at` (timestamptz)
@@ -25,7 +31,7 @@ a row with started_at but NULL ended_at and resumes the live timer.
 - `user_id` (uuid, owner)
 - `started_at` (timestamptz)
 - `ended_at` (timestamptz, nullable)
-- `duration_min` (integer, nullable)
+- `duration_min` (numeric(10,2), nullable)
 - `workout_type` (text, e.g. "Push", "Pull", "Legs", "Cardio")
 - `note` (text, optional)
 - `created_at` (timestamptz)
@@ -35,7 +41,7 @@ a row with started_at but NULL ended_at and resumes the live timer.
 - `user_id` (uuid, owner)
 - `started_at` (timestamptz)
 - `ended_at` (timestamptz, nullable)
-- `duration_min` (integer, nullable)
+- `duration_min` (numeric(10,2), nullable)
 - `language` (text, the language being studied — free text, user picks/types)
 - `activity_type` (text, vocabulary | grammar | listening | speaking | reading)
 - `note` (text, optional)
@@ -46,7 +52,7 @@ a row with started_at but NULL ended_at and resumes the live timer.
 - `user_id` (uuid, owner)
 - `started_at` (timestamptz)
 - `ended_at` (timestamptz, nullable)
-- `duration_min` (integer, nullable)
+- `duration_min` (numeric(10,2), nullable)
 - `note` (text, optional)
 - `created_at` (timestamptz)
 
@@ -54,7 +60,7 @@ a row with started_at but NULL ended_at and resumes the live timer.
 Stores full AI assistant chat history. Each row is one message in a conversation.
 - `id` (uuid, pk)
 - `user_id` (uuid, owner)
-- `role` (text, 'user' | 'assistant')
+- `role` (text, check: 'user' | 'assistant')
 - `content` (text, the message content)
 - `created_at` (timestamptz)
 
@@ -66,11 +72,13 @@ Stores full AI assistant chat history. Each row is one message in a conversation
 ## Notes
 1. All session tables share the same timer pattern: insert with started_at on
    Start, update with ended_at + duration_min on Complete.
-2. The universal activity timer component reads any of these tables to detect
-   a running session (ended_at IS NULL) and resume.
-3. assistant_conversations stores the full conversation so the API route can
-   reconstruct history and the frontend can display it.
+2. duration_min is numeric(10,2) to match what the frontend timer
+   (lib/timer/context.tsx) actually computes and writes: fractional minutes
+   rounded to 2 decimal places.
+3. The universal activity timer reads any of these tables to detect a running
+   session (ended_at IS NULL) and resume.
 4. activity_type on language_sessions is CHECK-constrained to the 5 valid values.
+5. assistant_conversations.role is CHECK-constrained to 'user' | 'assistant'.
 */
 
 -- Trading sessions
@@ -79,7 +87,7 @@ CREATE TABLE IF NOT EXISTS trading_sessions (
   user_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
   started_at timestamptz NOT NULL DEFAULT now(),
   ended_at timestamptz,
-  duration_min integer,
+  duration_min numeric(10,2),
   in_plan boolean NOT NULL DEFAULT false,
   note text,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -109,7 +117,7 @@ CREATE TABLE IF NOT EXISTS gym_sessions (
   user_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
   started_at timestamptz NOT NULL DEFAULT now(),
   ended_at timestamptz,
-  duration_min integer,
+  duration_min numeric(10,2),
   workout_type text,
   note text,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -139,7 +147,7 @@ CREATE TABLE IF NOT EXISTS language_sessions (
   user_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
   started_at timestamptz NOT NULL DEFAULT now(),
   ended_at timestamptz,
-  duration_min integer,
+  duration_min numeric(10,2),
   language text NOT NULL,
   activity_type text NOT NULL DEFAULT 'vocabulary',
   note text,
@@ -172,7 +180,7 @@ CREATE TABLE IF NOT EXISTS job_search_sessions (
   user_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
   started_at timestamptz NOT NULL DEFAULT now(),
   ended_at timestamptz,
-  duration_min integer,
+  duration_min numeric(10,2),
   note text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -201,7 +209,9 @@ CREATE TABLE IF NOT EXISTS assistant_conversations (
   user_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
   role text NOT NULL,
   content text NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT assistant_conversations_role_check
+    CHECK (role IN ('user','assistant'))
 );
 
 ALTER TABLE assistant_conversations ENABLE ROW LEVEL SECURITY;

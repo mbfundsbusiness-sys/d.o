@@ -24,7 +24,7 @@ type TimerContextValue = {
     in_plan?: boolean;
     note?: string;
   }) => Promise<void>;
-  completeSession: (note?: string) => Promise<void>;
+  completeSession: (opts?: { note?: string; in_plan?: boolean }) => Promise<void>;
   cancelSession: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -138,7 +138,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     });
   }, [running]);
 
-  const completeSession = useCallback(async (note?: string) => {
+  const completeSession = useCallback(async (opts?: { note?: string; in_plan?: boolean }) => {
     if (!running) return;
 
     const table = TABLE_MAP[running.kind];
@@ -151,7 +151,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       ended_at: endedAt,
       duration_min: durationMin,
     };
-    if (note !== undefined) update.note = note;
+    if (opts?.note !== undefined) update.note = opts.note;
+    if (opts?.in_plan !== undefined) update.in_plan = opts.in_plan;
 
     const { error } = await supabase
       .from(table)

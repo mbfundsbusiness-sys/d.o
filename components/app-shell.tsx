@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth/provider';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Compass, LayoutDashboard, Map, Briefcase, LogOut, Languages, Sparkles, Wallet, Moon } from 'lucide-react';
+import { Compass, LayoutDashboard, Map, Briefcase, LogOut, Languages, Sparkles, Wallet, Moon, CandlestickChart, Bot, Dumbbell } from 'lucide-react';
 import { useState } from 'react';
 import { ActivityTimerWidget } from '@/components/activity-timer-widget';
 
@@ -12,9 +12,12 @@ const NAV_ITEMS = [
   { href: '/app', label: 'Today', icon: LayoutDashboard },
   { href: '/app/roadmap', label: 'Roadmap', icon: Map },
   { href: '/app/applications', label: 'Applications', icon: Briefcase },
+  { href: '/app/trading', label: 'Trading', icon: CandlestickChart },
+  { href: '/app/gym', label: 'Gym', icon: Dumbbell },
   { href: '/app/language', label: 'Language', icon: Languages },
   { href: '/app/finance', label: 'Finance', icon: Wallet },
   { href: '/app/prayer', label: 'Prayer', icon: Moon },
+  { href: '/app/botcouncil', label: 'BotCouncil', icon: Bot },
   { href: '/app/assistant', label: 'Assistant', icon: Sparkles },
 ];
 

@@ -2,13 +2,12 @@ import type { AnchorLog } from '@/lib/supabase/client';
 
 /**
  * Compute the current streak of consecutive days (ending today or yesterday)
- * where all four anchors were completed:
+ * where all three anchors were completed:
  * - wake_time is non-empty
  * - applications_sent >= 1
  * - trading_in_plan === true
- * - botcouncil_checked === true
  *
- * A day counts if ANY log entry for that day satisfies all four.
+ * A day counts if ANY log entry for that day satisfies all three.
  * The streak counts back from the most recent qualifying day; if the most
  * recent qualifying day is today or yesterday, the streak is active.
  */
@@ -21,8 +20,7 @@ export function computeAnchorStreak(logs: AnchorLog[]): number {
     const allHit =
       !!log.wake_time &&
       log.applications_sent >= 1 &&
-      log.trading_in_plan &&
-      log.botcouncil_checked;
+      log.trading_in_plan;
     if (allHit) {
       dayMap.set(log.log_date, true);
     }
@@ -72,8 +70,7 @@ export function computeLongestStreak(logs: AnchorLog[]): number {
     const allHit =
       !!log.wake_time &&
       log.applications_sent >= 1 &&
-      log.trading_in_plan &&
-      log.botcouncil_checked;
+      log.trading_in_plan;
     if (allHit) {
       dayMap.set(log.log_date, true);
     }
@@ -108,8 +105,7 @@ export function getQualifyingDays(logs: AnchorLog[]): Set<string> {
     const allHit =
       !!log.wake_time &&
       log.applications_sent >= 1 &&
-      log.trading_in_plan &&
-      log.botcouncil_checked;
+      log.trading_in_plan;
     if (allHit) set.add(log.log_date);
   }
   return set;

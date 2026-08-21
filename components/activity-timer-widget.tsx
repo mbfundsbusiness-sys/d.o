@@ -33,6 +33,7 @@ export function ActivityTimerWidget() {
   const [activityType, setActivityType] = useState('vocabulary');
   const [workoutType, setWorkoutType] = useState('');
   const [note, setNote] = useState('');
+  const [inPlan, setInPlan] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
@@ -61,8 +62,12 @@ export function ActivityTimerWidget() {
   async function handleComplete() {
     setError(null);
     try {
-      await completeSession(note.trim() || undefined);
+      await completeSession({
+        note: note.trim() || undefined,
+        in_plan: inPlan ?? undefined,
+      });
       setNote('');
+      setInPlan(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to complete');
     }
@@ -87,7 +92,18 @@ export function ActivityTimerWidget() {
   }
 
   if (running) {
-    return <RunningWidget running={running} note={note} setNote={setNote} onComplete={handleComplete} onCancel={handleCancel} error={error} />;
+    return (
+      <RunningWidget
+        running={running}
+        note={note}
+        setNote={setNote}
+        inPlan={inPlan}
+        setInPlan={setInPlan}
+        onComplete={handleComplete}
+        onCancel={handleCancel}
+        error={error}
+      />
+    );
   }
 
   return (
@@ -189,6 +205,8 @@ function RunningWidget({
   running,
   note,
   setNote,
+  inPlan,
+  setInPlan,
   onComplete,
   onCancel,
   error,
@@ -196,6 +214,8 @@ function RunningWidget({
   running: RunningSession;
   note: string;
   setNote: (v: string) => void;
+  inPlan: boolean | null;
+  setInPlan: (v: boolean | null) => void;
   onComplete: () => void;
   onCancel: () => void;
   error: string | null;
@@ -241,6 +261,30 @@ function RunningWidget({
         <p className="text-center text-xs text-muted-foreground">{running.workout_type}</p>
       )}
 
+      {running.kind === 'trading' && (
+        <div className="space-y-1">
+          <Label className="text-xs">Stayed in plan?</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={inPlan === true ? 'default' : 'outline'}
+              onClick={() => setInPlan(true)}
+            >
+              Yes
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={inPlan === false ? 'default' : 'outline'}
+              onClick={() => setInPlan(false)}
+            >
+              No
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Input
         placeholder="Add a note..."
         value={note}
@@ -250,7 +294,12 @@ function RunningWidget({
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
-      <Button onClick={onComplete} size="sm" className="w-full">
+      <Button
+        onClick={onComplete}
+        size="sm"
+        className="w-full"
+        disabled={running.kind === 'trading' && inPlan === null}
+      >
         <Square className="mr-2 h-3.5 w-3.5" />
         Complete
       </Button>
