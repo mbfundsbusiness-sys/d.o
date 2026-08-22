@@ -59,10 +59,10 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  'flex items-center gap-3 border-l-2 px-3 py-2 text-sm transition-colors',
                   isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground'
+                    ? 'border-foreground font-semibold text-foreground'
+                    : 'border-transparent font-medium text-muted-foreground hover:border-border hover:text-foreground'
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -119,10 +119,10 @@ export function AppShell({
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'flex items-center gap-3 border-l-2 px-3 py-2 text-sm transition-colors',
                     isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground'
+                      ? 'border-foreground font-semibold text-foreground'
+                      : 'border-transparent font-medium text-muted-foreground hover:border-border hover:text-foreground'
                   )}
                 >
                   <Icon className="h-4 w-4" />
