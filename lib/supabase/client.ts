@@ -260,6 +260,30 @@ export type LangLessonGroup = {
   created_at: string;
 };
 
+// --- Language lesson player (Phase 2) ---
+// The full LangQuestion row (with correct_answer/acceptable_answers/
+// explanation) only ever lives server-side. The client only ever sees a
+// PlayableQuestion, returned by /api/language/generate-questions.
+
+export type LangQuestionType = 'multiple_choice' | 'translation' | 'fill_blank';
+
+export type PlayableQuestion = {
+  id: string;
+  question_type: LangQuestionType;
+  prompt: string;
+  options: string[] | null;
+  hint: string | null;
+  difficulty: number;
+  order_index: number;
+};
+
+export type AnswerVerdict = {
+  correct: boolean;
+  minorError: boolean;
+  correctAnswer: string;
+  explanation: string | null;
+};
+
 export type LanguageTutorMessage = {
   id: string;
   user_id: string;

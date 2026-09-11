@@ -10,6 +10,7 @@ import { Send, Loader2, Check, ArrowLeft, Play, Square, MessageSquare, Sparkles,
 import { useTimer, formatDuration } from '@/lib/timer/context';
 import { FOCUS_LABELS } from '@/components/language-module-list';
 import { SpeakButton } from '@/components/speak-button';
+import { LanguageLessonPlayer } from '@/components/language-lesson-player';
 
 type ModuleDetailProps = {
   module: LanguageModule;
@@ -25,6 +26,7 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [showPlayer, setShowPlayer] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isThisModuleRunning = running?.kind === 'language' && running?.language === module.language;
@@ -211,11 +213,17 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
               <span className="text-xs text-muted-foreground">studying {module.language}</span>
             </div>
             <div className="flex-1" />
-            {!module.completed && (
-              <Button size="sm" onClick={handleCompleteModule} disabled={completing}>
-                {completing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-2 h-3.5 w-3.5" />}
-                Complete module
-              </Button>
+            {!module.completed && !showPlayer && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => setShowPlayer(true)}>
+                  <Sparkles className="mr-2 h-3.5 w-3.5" />
+                  Practice lesson
+                </Button>
+                <Button size="sm" onClick={handleCompleteModule} disabled={completing}>
+                  {completing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-2 h-3.5 w-3.5" />}
+                  Mark complete
+                </Button>
+              </>
             )}
           </>
         ) : module.completed ? (
@@ -224,15 +232,35 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
           <>
             <p className="text-sm text-muted-foreground">Ready to study this module?</p>
             <div className="flex-1" />
-            <Button size="sm" onClick={handleStartTimer} disabled={!!running}>
-              <Play className="mr-2 h-3.5 w-3.5" />
-              Start studying
-            </Button>
+            {!showPlayer && (
+              <>
+                <Button size="sm" onClick={() => setShowPlayer(true)}>
+                  <Sparkles className="mr-2 h-3.5 w-3.5" />
+                  Practice lesson
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleStartTimer} disabled={!!running}>
+                  <Play className="mr-2 h-3.5 w-3.5" />
+                  Start studying
+                </Button>
+              </>
+            )}
           </>
         )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {showPlayer && !module.completed && (
+        <LanguageLessonPlayer
+          lessonId={module.id}
+          language={module.language}
+          onExit={() => setShowPlayer(false)}
+          onPassed={async () => {
+            await handleCompleteModule();
+            setShowPlayer(false);
+          }}
+        />
+      )}
 
       {/* Module content */}
       <ModuleContentDisplay content={content} focusArea={focusArea} language={module.language} />
