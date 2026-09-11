@@ -294,6 +294,21 @@ export type NextQuestionResponse = {
   ability: number;
 };
 
+// --- Mastery + spaced repetition (Phase 4) ---
+
+export type LangConceptMastery = {
+  id: string;
+  user_id: string;
+  lesson_id: string;
+  mastery: number;
+  successful_recalls: number;
+  interval_days: number;
+  last_reviewed_at: string;
+  next_review_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type LanguageTutorMessage = {
   id: string;
   user_id: string;

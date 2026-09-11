@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, type LanguageSession, type LanguageAssessment, type LanguageModule, type LangUnit, type LangLessonGroup } from '@/lib/supabase/client';
+import { supabase, type LanguageSession, type LanguageAssessment, type LanguageModule, type LangUnit, type LangLessonGroup, type LangConceptMastery } from '@/lib/supabase/client';
 import { LanguageStats } from '@/components/language-stats';
 import { LanguageHistory } from '@/components/language-history';
 import { LanguageForm } from '@/components/language-session-form';
@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Plus, Sparkles, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Plus, Sparkles, BookOpen, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { formatDateUK } from '@/lib/utils/dates';
 
 const COMMON_LANGUAGES = ['Spanish', 'French', 'German', 'Arabic', 'Japanese', 'Mandarin', 'Italian', 'Portuguese'];
 
@@ -38,6 +39,7 @@ export default function LanguagePage() {
   const [newLanguage, setNewLanguage] = useState('Spanish');
   const [customLanguage, setCustomLanguage] = useState('');
   const [showLogForm, setShowLogForm] = useState(false);
+  const [dueReviews, setDueReviews] = useState<{ lesson: LanguageModule; mastery: LangConceptMastery }[]>([]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -92,6 +94,34 @@ export default function LanguagePage() {
       setSelectedLanguage(assessments[0].language);
     }
   }, [assessments, selectedLanguage]);
+
+  // Which completed lessons are due for spaced-repetition review right now.
+  useEffect(() => {
+    const completedIds = modules.filter((m) => m.completed).map((m) => m.id);
+    if (completedIds.length === 0) {
+      setDueReviews([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('lang_concept_mastery')
+        .select('*')
+        .in('lesson_id', completedIds)
+        .lte('next_review_at', new Date().toISOString())
+        .order('next_review_at', { ascending: true });
+
+      if (cancelled) return;
+      const byId = new Map(modules.map((m) => [m.id, m]));
+      const due = (data ?? [])
+        .map((m: LangConceptMastery) => ({ lesson: byId.get(m.lesson_id), mastery: m }))
+        .filter((r): r is { lesson: LanguageModule; mastery: LangConceptMastery } => !!r.lesson);
+      setDueReviews(due);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [modules]);
 
   async function handleAddLanguage() {
     const lang = customLanguage.trim() || newLanguage;
@@ -158,6 +188,7 @@ export default function LanguagePage() {
     }
     setSelectedModule(null);
   }
+
 
   if (loading) {
     return (
@@ -252,6 +283,32 @@ export default function LanguagePage() {
       {/* Stats (always visible) */}
       <LanguageStats sessions={sessions} />
 
+      {/* Spaced-repetition: lessons due for review right now */}
+      {!selectedModule && dueReviews.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <RotateCcw className="h-4 w-4" />
+              Due for review ({dueReviews.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {dueReviews.map(({ lesson, mastery }) => (
+              <button
+                key={lesson.id}
+                onClick={() => setSelectedModule(lesson)}
+                className="flex w-full items-center justify-between rounded-lg border border-border p-3 text-left text-sm hover:bg-accent/5"
+              >
+                <span className="font-medium">{lesson.title}</span>
+                <span className="text-xs text-muted-foreground">
+                  {Math.round(mastery.mastery)}% · was due {formatDateUK(mastery.next_review_at.slice(0, 10))}
+                </span>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Module section or module detail */}
       {selectedLanguage && (
         <>
@@ -260,6 +317,7 @@ export default function LanguagePage() {
               module={selectedModule}
               onBack={() => setSelectedModule(null)}
               onModuleCompleted={handleModuleCompleted}
+              onReviewed={() => selectedLanguage && fetchModules(selectedLanguage)}
             />
           ) : (
             <Card>

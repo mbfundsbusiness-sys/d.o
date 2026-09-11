@@ -1,24 +1,28 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase, type LanguageModule, type LanguageTutorMessage, type ModuleContent, type ModuleFocusArea } from '@/lib/supabase/client';
+import { supabase, type LanguageModule, type LanguageTutorMessage, type ModuleContent, type ModuleFocusArea, type LangConceptMastery } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Send, Loader2, Check, ArrowLeft, Play, Square, MessageSquare, Sparkles, User } from 'lucide-react';
+import { Send, Loader2, Check, ArrowLeft, Play, Square, MessageSquare, Sparkles, User, RotateCcw } from 'lucide-react';
 import { useTimer, formatDuration } from '@/lib/timer/context';
 import { FOCUS_LABELS } from '@/components/language-module-list';
 import { SpeakButton } from '@/components/speak-button';
 import { LanguageLessonPlayer } from '@/components/language-lesson-player';
+import { masteryLabel } from '@/lib/language/mastery';
+import { formatDateUK } from '@/lib/utils/dates';
 
 type ModuleDetailProps = {
   module: LanguageModule;
   onBack: () => void;
   onModuleCompleted: () => void;
+  /** Called after a spaced-repetition review finishes (pass or fail) — lets the parent refresh its due-review list without navigating away. */
+  onReviewed?: () => void;
 };
 
-export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetailProps) {
+export function ModuleDetail({ module, onBack, onModuleCompleted, onReviewed }: ModuleDetailProps) {
   const { running, startSession, completeSession } = useTimer();
   const [tutorMessages, setTutorMessages] = useState<LanguageTutorMessage[]>([]);
   const [input, setInput] = useState('');
@@ -27,6 +31,7 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [showPlayer, setShowPlayer] = useState(false);
+  const [mastery, setMastery] = useState<LangConceptMastery | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isThisModuleRunning = running?.kind === 'language' && running?.language === module.language;
@@ -50,6 +55,20 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
   useEffect(() => {
     fetchTutorMessages();
   }, [fetchTutorMessages]);
+
+  const fetchMastery = useCallback(async () => {
+    if (!module.completed) return;
+    const { data } = await supabase
+      .from('lang_concept_mastery')
+      .select('*')
+      .eq('lesson_id', module.id)
+      .maybeSingle();
+    setMastery(data ?? null);
+  }, [module.id, module.completed]);
+
+  useEffect(() => {
+    fetchMastery();
+  }, [fetchMastery]);
 
   useEffect(() => {
     if (isThisModuleRunning && running) {
@@ -116,6 +135,30 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
       setError(err instanceof Error ? err.message : 'Failed to complete module');
     } finally {
       setCompleting(false);
+    }
+  }
+
+  async function handleReviewResult(accuracy: number) {
+    setError(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error('No session');
+
+      const res = await fetch('/api/language/review-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ lessonId: module.id, accuracy }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save review result');
+
+      setMastery(data.mastery);
+      onReviewed?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save review result');
+    } finally {
+      setShowPlayer(false);
     }
   }
 
@@ -227,7 +270,24 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
             )}
           </>
         ) : module.completed ? (
-          <p className="text-sm text-muted-foreground">Module completed</p>
+          <>
+            <div className="text-sm text-muted-foreground">
+              <p>Module completed</p>
+              {mastery && (
+                <p className="text-xs">
+                  Mastery: <span className="font-medium text-foreground">{Math.round(mastery.mastery)}%</span>{' '}
+                  ({masteryLabel(mastery.mastery)}) · next review {formatDateUK(mastery.next_review_at.slice(0, 10))}
+                </p>
+              )}
+            </div>
+            <div className="flex-1" />
+            {!showPlayer && (
+              <Button size="sm" variant="outline" onClick={() => setShowPlayer(true)}>
+                <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                Review
+              </Button>
+            )}
+          </>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">Ready to study this module?</p>
@@ -250,15 +310,20 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {showPlayer && !module.completed && (
+      {showPlayer && (
         <LanguageLessonPlayer
           lessonId={module.id}
           language={module.language}
           focusArea={module.focus_area}
+          reviewMode={module.completed}
           onExit={() => setShowPlayer(false)}
-          onPassed={async () => {
-            await handleCompleteModule();
-            setShowPlayer(false);
+          onPassed={async (accuracy) => {
+            if (module.completed) {
+              await handleReviewResult(accuracy);
+            } else {
+              await handleCompleteModule();
+              setShowPlayer(false);
+            }
           }}
         />
       )}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 import { getActiveLessonGroupId } from '@/lib/language/hierarchy';
+import { initialMastery } from '@/lib/language/mastery';
 import type { ModuleContent, ModuleFocusArea } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -61,6 +62,38 @@ export async function POST(req: NextRequest) {
 
     if (!completedModule) {
       return NextResponse.json({ error: 'Module not found' }, { status: 404 });
+    }
+
+    // Seed this lesson's spaced-repetition state from its first-pass accuracy
+    // (capped well below "mastered" — see lib/language/mastery.ts), if it
+    // doesn't already have one (e.g. re-triggering next-module shouldn't
+    // reset an existing review schedule).
+    const { data: existingMastery } = await supabaseServer
+      .from('lang_concept_mastery')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('lesson_id', moduleId)
+      .maybeSingle();
+
+    if (!existingMastery) {
+      const { data: quizAttempts } = await supabaseServer
+        .from('lang_question_attempts')
+        .select('is_correct')
+        .eq('lesson_id', moduleId);
+
+      if (quizAttempts && quizAttempts.length > 0) {
+        const accuracy = quizAttempts.filter((a) => a.is_correct).length / quizAttempts.length;
+        const seed = initialMastery(accuracy);
+        await supabaseServer.from('lang_concept_mastery').insert({
+          user_id: userId,
+          lesson_id: moduleId,
+          mastery: seed.mastery,
+          successful_recalls: seed.successfulRecalls,
+          interval_days: seed.intervalDays,
+          last_reviewed_at: new Date().toISOString(),
+          next_review_at: seed.nextReviewAt,
+        });
+      }
     }
 
     // Get assessment

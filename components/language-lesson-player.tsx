@@ -20,14 +20,17 @@ export function LanguageLessonPlayer({
   lessonId,
   language,
   focusArea,
+  reviewMode = false,
   onExit,
   onPassed,
 }: {
   lessonId: string;
   language: string;
   focusArea: string;
+  /** True when reviewing an already-completed lesson (spaced repetition) rather than learning it for the first time. */
+  reviewMode?: boolean;
   onExit: () => void;
-  onPassed: () => void;
+  onPassed: (accuracy: number) => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +82,10 @@ export function LanguageLessonPlayer({
   }, [lessonId]);
 
   useEffect(() => {
-    fetchNext();
+    // A review always starts a fresh question set — the lesson's original 8
+    // are already fully answered from when it was first completed.
+    fetchNext(reviewMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchNext]);
 
   async function handleCheck() {
@@ -139,18 +145,28 @@ export function LanguageLessonPlayer({
     const accuracy = summary.totalCount > 0 ? summary.correctCount / summary.totalCount : 0;
     const passed = accuracy >= PASS_THRESHOLD;
 
+    const heading = passed
+      ? reviewMode ? 'Review complete' : 'Lesson complete'
+      : reviewMode ? "Needs another look" : 'Not quite there yet';
+    const actionLabel = reviewMode ? 'Done' : 'Finish lesson';
+    const failedHint = reviewMode
+      ? `— below ${Math.round(PASS_THRESHOLD * 100)}%, this concept's review interval resets`
+      : `— need ${Math.round(PASS_THRESHOLD * 100)}% to complete this lesson`;
+
     return (
       <Card>
         <CardContent className="space-y-4 py-8 text-center">
-          <h3 className="text-lg font-semibold">{passed ? 'Lesson complete' : 'Not quite there yet'}</h3>
+          <h3 className="text-lg font-semibold">{heading}</h3>
           <p className="text-3xl font-semibold tabular-nums">{Math.round(accuracy * 100)}%</p>
           <p className="text-sm text-muted-foreground">
             {summary.correctCount} of {summary.totalCount} correct
-            {!passed && ` — need ${Math.round(PASS_THRESHOLD * 100)}% to complete this lesson`}
+            {!passed && ` ${failedHint}`}
           </p>
           <div className="flex justify-center gap-2">
             {passed ? (
-              <Button onClick={onPassed}>Finish lesson</Button>
+              <Button onClick={() => onPassed(accuracy)}>{actionLabel}</Button>
+            ) : reviewMode ? (
+              <Button onClick={() => onPassed(accuracy)}>Done</Button>
             ) : (
               <Button onClick={() => fetchNext(true)}>
                 <RotateCcw className="mr-2 h-4 w-4" />
