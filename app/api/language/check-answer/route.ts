@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { evaluateAnswer } from '@/lib/language/answer-eval';
+import { updateAbilityAfterAnswer } from '@/lib/language/ability';
 import type { AnswerVerdict } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -58,11 +59,29 @@ export async function POST(req: NextRequest) {
       hint_used: !!hintUsed,
     });
 
+    const { data: lesson } = await supabaseServer
+      .from('language_modules')
+      .select('language, focus_area')
+      .eq('id', question.lesson_id)
+      .maybeSingle();
+
+    const ability = lesson
+      ? await updateAbilityAfterAnswer(
+          supabaseServer,
+          userId,
+          lesson.language,
+          lesson.focus_area,
+          question.difficulty,
+          result.correct
+        )
+      : 50;
+
     const verdict: AnswerVerdict = {
       correct: result.correct,
       minorError: result.minorError,
       correctAnswer: question.correct_answer,
       explanation: question.explanation,
+      ability,
     };
 
     return NextResponse.json(verdict);

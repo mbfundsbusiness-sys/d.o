@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, type PlayableQuestion, type AnswerVerdict } from '@/lib/supabase/client';
+import { supabase, type PlayableQuestion, type AnswerVerdict, type NextQuestionResponse } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,31 +14,34 @@ import { cn } from '@/lib/utils';
 const PASS_THRESHOLD = 0.7;
 
 type Feedback = { verdict: AnswerVerdict; givenAnswer: string } | null;
+type Summary = { correctCount: number; totalCount: number };
 
 export function LanguageLessonPlayer({
   lessonId,
   language,
+  focusArea,
   onExit,
   onPassed,
 }: {
   lessonId: string;
   language: string;
+  focusArea: string;
   onExit: () => void;
   onPassed: () => void;
 }) {
   const [loading, setLoading] = useState(true);
-  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<PlayableQuestion[]>([]);
-  const [index, setIndex] = useState(0);
+  const [question, setQuestion] = useState<PlayableQuestion | null>(null);
+  const [progress, setProgress] = useState({ answered: 0, total: 8 });
+  const [ability, setAbility] = useState(50);
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [textAnswer, setTextAnswer] = useState('');
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [checking, setChecking] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [results, setResults] = useState<boolean[]>([]);
 
-  const loadQuestions = useCallback(async (force = false) => {
+  const fetchNext = useCallback(async (reset = false) => {
     setLoading(true);
     setError(null);
     try {
@@ -46,39 +49,42 @@ export function LanguageLessonPlayer({
       const accessToken = sessionData.session?.access_token;
       if (!accessToken) throw new Error('No session');
 
-      const res = await fetch('/api/language/generate-questions', {
+      const res = await fetch('/api/language/next-question', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ moduleId: lessonId, force }),
+        body: JSON.stringify({ moduleId: lessonId, reset }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load questions');
+      const data: NextQuestionResponse = await res.json();
+      if (!res.ok) throw new Error((data as unknown as { error?: string }).error || 'Failed to load question');
 
-      setQuestions(data.questions ?? []);
-      setIndex(0);
-      setResults([]);
+      setAbility(data.ability);
+      setProgress({ answered: data.answeredCount, total: data.totalCount });
       setFeedback(null);
       setSelectedOption(null);
       setTextAnswer('');
       setShowHint(false);
+
+      if (data.done) {
+        setSummary({ correctCount: data.correctCount ?? 0, totalCount: data.totalCount });
+        setQuestion(null);
+      } else {
+        setSummary(null);
+        setQuestion(data.question);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load questions');
+      setError(err instanceof Error ? err.message : 'Failed to load question');
     } finally {
       setLoading(false);
-      setRegenerating(false);
     }
   }, [lessonId]);
 
   useEffect(() => {
-    loadQuestions();
-  }, [loadQuestions]);
-
-  const current = questions[index];
-  const finished = questions.length > 0 && index >= questions.length;
+    fetchNext();
+  }, [fetchNext]);
 
   async function handleCheck() {
-    if (!current) return;
-    const given = current.question_type === 'multiple_choice' ? selectedOption ?? '' : textAnswer;
+    if (!question) return;
+    const given = question.question_type === 'multiple_choice' ? selectedOption ?? '' : textAnswer;
     if (!given.trim()) return;
 
     setChecking(true);
@@ -91,13 +97,13 @@ export function LanguageLessonPlayer({
       const res = await fetch('/api/language/check-answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ questionId: current.id, answer: given, hintUsed: showHint }),
+        body: JSON.stringify({ questionId: question.id, answer: given, hintUsed: showHint }),
       });
       const data: AnswerVerdict = await res.json();
       if (!res.ok) throw new Error((data as unknown as { error?: string }).error || 'Failed to check answer');
 
       setFeedback({ verdict: data, givenAnswer: given });
-      setResults((prev) => [...prev, data.correct]);
+      setAbility(data.ability);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to check answer');
     } finally {
@@ -105,31 +111,23 @@ export function LanguageLessonPlayer({
     }
   }
 
-  function handleContinue() {
-    setFeedback(null);
-    setSelectedOption(null);
-    setTextAnswer('');
-    setShowHint(false);
-    setIndex((i) => i + 1);
-  }
-
   if (loading) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" />
-          <p className="text-sm">Preparing your lesson...</p>
+          <p className="text-sm">Preparing your next question...</p>
         </CardContent>
       </Card>
     );
   }
 
-  if (error && questions.length === 0) {
+  if (error && !question && !summary) {
     return (
       <Card className="border-destructive">
         <CardContent className="space-y-3 py-8 text-center">
           <p className="text-sm text-destructive">{error}</p>
-          <Button variant="outline" size="sm" onClick={() => loadQuestions()}>
+          <Button variant="outline" size="sm" onClick={() => fetchNext()}>
             Try again
           </Button>
         </CardContent>
@@ -137,9 +135,8 @@ export function LanguageLessonPlayer({
     );
   }
 
-  if (finished) {
-    const correctCount = results.filter(Boolean).length;
-    const accuracy = questions.length > 0 ? correctCount / questions.length : 0;
+  if (summary) {
+    const accuracy = summary.totalCount > 0 ? summary.correctCount / summary.totalCount : 0;
     const passed = accuracy >= PASS_THRESHOLD;
 
     return (
@@ -148,21 +145,15 @@ export function LanguageLessonPlayer({
           <h3 className="text-lg font-semibold">{passed ? 'Lesson complete' : 'Not quite there yet'}</h3>
           <p className="text-3xl font-semibold tabular-nums">{Math.round(accuracy * 100)}%</p>
           <p className="text-sm text-muted-foreground">
-            {correctCount} of {questions.length} correct
+            {summary.correctCount} of {summary.totalCount} correct
             {!passed && ` — need ${Math.round(PASS_THRESHOLD * 100)}% to complete this lesson`}
           </p>
           <div className="flex justify-center gap-2">
             {passed ? (
               <Button onClick={onPassed}>Finish lesson</Button>
             ) : (
-              <Button
-                onClick={() => {
-                  setRegenerating(true);
-                  loadQuestions(true);
-                }}
-                disabled={regenerating}
-              >
-                {regenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              <Button onClick={() => fetchNext(true)}>
+                <RotateCcw className="mr-2 h-4 w-4" />
                 Practice again
               </Button>
             )}
@@ -173,7 +164,7 @@ export function LanguageLessonPlayer({
     );
   }
 
-  if (!current) return null;
+  if (!question) return null;
 
   return (
     <Card>
@@ -185,25 +176,36 @@ export function LanguageLessonPlayer({
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${(index / questions.length) * 100}%` }}
+              style={{ width: `${(progress.answered / progress.total) * 100}%` }}
             />
           </div>
           <span className="text-xs tabular-nums text-muted-foreground">
-            {index + 1}/{questions.length}
+            {progress.answered + 1}/{progress.total}
           </span>
+        </div>
+
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            Difficulty{' '}
+            <span className="font-mono tabular-nums">
+              {'●'.repeat(question.difficulty)}
+              {'○'.repeat(5 - question.difficulty)}
+            </span>
+          </span>
+          <span className="capitalize">{focusArea} ability {Math.round(ability)}%</span>
         </div>
 
         <div className="space-y-3">
           <p className="flex items-start gap-1.5 text-lg font-medium leading-relaxed">
-            {current.prompt}
-            {(current.question_type === 'translation' || current.question_type === 'fill_blank') && (
-              <SpeakButton text={current.prompt.replace(/___/g, '')} language={language} />
+            {question.prompt}
+            {(question.question_type === 'translation' || question.question_type === 'fill_blank') && (
+              <SpeakButton text={question.prompt.replace(/___/g, '')} language={language} />
             )}
           </p>
 
-          {current.question_type === 'multiple_choice' && current.options && (
+          {question.question_type === 'multiple_choice' && question.options && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {current.options.map((opt) => (
+              {question.options.map((opt) => (
                 <button
                   key={opt}
                   onClick={() => !feedback && setSelectedOption(opt)}
@@ -223,7 +225,7 @@ export function LanguageLessonPlayer({
             </div>
           )}
 
-          {current.question_type !== 'multiple_choice' && (
+          {question.question_type !== 'multiple_choice' && (
             <Input
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}
@@ -234,12 +236,12 @@ export function LanguageLessonPlayer({
             />
           )}
 
-          {current.hint && !feedback && (
+          {question.hint && !feedback && (
             <div>
               {showHint ? (
                 <p className="text-xs text-muted-foreground">
                   <Lightbulb className="mr-1 inline h-3.5 w-3.5" />
-                  {current.hint}
+                  {question.hint}
                 </p>
               ) : (
                 <button
@@ -286,11 +288,11 @@ export function LanguageLessonPlayer({
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button
-          onClick={feedback ? handleContinue : handleCheck}
+          onClick={feedback ? () => fetchNext() : handleCheck}
           disabled={
             checking ||
             (!feedback &&
-              (current.question_type === 'multiple_choice' ? !selectedOption : !textAnswer.trim()))
+              (question.question_type === 'multiple_choice' ? !selectedOption : !textAnswer.trim()))
           }
           className="w-full"
         >

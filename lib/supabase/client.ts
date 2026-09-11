@@ -282,6 +282,16 @@ export type AnswerVerdict = {
   minorError: boolean;
   correctAnswer: string;
   explanation: string | null;
+  ability: number;
+};
+
+export type NextQuestionResponse = {
+  question: PlayableQuestion | null;
+  done: boolean;
+  totalCount: number;
+  answeredCount: number;
+  correctCount?: number;
+  ability: number;
 };
 
 export type LanguageTutorMessage = {

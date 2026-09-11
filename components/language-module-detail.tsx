@@ -254,6 +254,7 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
         <LanguageLessonPlayer
           lessonId={module.id}
           language={module.language}
+          focusArea={module.focus_area}
           onExit={() => setShowPlayer(false)}
           onPassed={async () => {
             await handleCompleteModule();
