@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 import type { LanguageAssessment, LanguageModule, ModuleContent, ModuleFocusArea } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -83,22 +84,17 @@ export async function POST(req: NextRequest) {
     const nextModuleNumber = (existingModules?.[0]?.module_number ?? 0) + 1;
     const moduleCount = count ?? 4;
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
     }
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+    let rawText: string;
+    try {
+      rawText = await callGemini({
+        apiKey,
         system: MODULE_GEN_SYSTEM,
+        maxOutputTokens: 4096,
         messages: [
           {
             role: 'user',
@@ -111,15 +107,11 @@ Style: ${assessment.style}
 Return ONLY a JSON array of ${moduleCount} module objects.`,
           },
         ],
-      }),
-    });
-
-    if (!anthropicRes.ok) {
+      });
+    } catch (err) {
+      console.error('Gemini API error:', err);
       return NextResponse.json({ error: 'AI request failed' }, { status: 502 });
     }
-
-    const data = await anthropicRes.json();
-    const rawText = data.content?.[0]?.text ?? '[]';
 
     // Parse the JSON array from the response
     let modules: { title: string; focus_area: ModuleFocusArea; content: ModuleContent }[];

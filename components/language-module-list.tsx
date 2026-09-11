@@ -3,7 +3,8 @@
 import type { LanguageModule, ModuleFocusArea } from '@/lib/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Lock, BookOpen, MessageSquare, Headphones, Mic, BookText, Type } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Check, Lock, BookOpen, MessageSquare, Headphones, Mic, BookText, Type, Sparkles } from 'lucide-react';
 
 const FOCUS_ICONS: Record<ModuleFocusArea, typeof BookOpen> = {
   vocabulary: Type,
@@ -26,9 +27,10 @@ type ModuleListProps = {
   onSelect: (module: LanguageModule) => void;
   selectedId?: string;
   generating?: boolean;
+  onGenerate?: () => void;
 };
 
-export function ModuleList({ modules, onSelect, selectedId, generating }: ModuleListProps) {
+export function ModuleList({ modules, onSelect, selectedId, generating, onGenerate }: ModuleListProps) {
   if (generating) {
     return (
       <Card>
@@ -47,9 +49,15 @@ export function ModuleList({ modules, onSelect, selectedId, generating }: Module
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
           <BookOpen className="mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            No modules yet. Complete the assessment to generate your curriculum.
+          <p className="mb-3 text-sm text-muted-foreground">
+            No modules yet.
           </p>
+          {onGenerate && (
+            <Button size="sm" onClick={onGenerate}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Generate curriculum
+            </Button>
+          )}
         </CardContent>
       </Card>
     );

@@ -109,3 +109,74 @@ export function formatDateUK(dateStr: string | null): string {
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+// --- Europe/London wall-clock helpers ---
+// These are the single source of truth for "what day/time is it in London",
+// independent of the device timezone.
+
+const LONDON_TZ = 'Europe/London';
+
+export type LondonNow = {
+  /** ISO date string YYYY-MM-DD in London */
+  dateISO: string;
+  /** 0 = Sunday ... 6 = Saturday, in London */
+  dayOfWeek: number;
+  hour: number;
+  minute: number;
+  /** minutes since midnight London time */
+  minutesOfDay: number;
+};
+
+export function londonNow(d: Date = new Date()): LondonNow {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: LONDON_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    weekday: 'short',
+  }).formatToParts(d);
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const year = get('year');
+  const month = get('month');
+  const day = get('day');
+  let hour = parseInt(get('hour'), 10);
+  if (hour === 24) hour = 0; // some environments emit "24" for midnight
+  const minute = parseInt(get('minute'), 10);
+
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  const dayOfWeek = weekdayMap[get('weekday')] ?? 0;
+
+  return {
+    dateISO: `${year}-${month}-${day}`,
+    dayOfWeek,
+    hour,
+    minute,
+    minutesOfDay: hour * 60 + minute,
+  };
+}
+
+/** "13:30" | "13:30:00" -> 810 (minutes since midnight). */
+export function minutesOfDay(hhmm: string): number {
+  const [h, m] = hhmm.split(':');
+  return (parseInt(h, 10) || 0) * 60 + (parseInt(m, 10) || 0);
+}
+
+/** Trim a postgres `time` value ("13:30:00") to "13:30". */
+export function fmtHM(hhmm: string): string {
+  const [h, m] = hhmm.split(':');
+  return `${(h ?? '00').padStart(2, '0')}:${(m ?? '00').padStart(2, '0')}`;
+}
+
+/** minutes since midnight -> "13:30". */
+export function minutesToHM(mins: number): string {
+  const clamped = ((mins % 1440) + 1440) % 1440;
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}

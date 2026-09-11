@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 
 export const runtime = 'nodejs';
 
@@ -117,37 +118,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
-      return NextResponse.json({ error: 'AI assistant not configured. Add ANTHROPIC_API_KEY in the secrets panel.' }, { status: 503 });
+      return NextResponse.json({ error: 'AI assistant not configured. Add GEMINI_API_KEY in the secrets panel.' }, { status: 503 });
     }
 
-    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+    let assistantContent: string;
+    try {
+      assistantContent = await callGemini({
+        apiKey,
         system: SYSTEM_PROMPT + contextStr,
         messages: [
           ...historyMessages,
           { role: 'user' as const, content: userMessage },
         ],
-      }),
-    });
-
-    if (!anthropicResponse.ok) {
-      const errText = await anthropicResponse.text();
-      console.error('Anthropic API error:', errText);
+        maxOutputTokens: 1024,
+      });
+    } catch (err) {
+      console.error('Gemini API error:', err);
       return NextResponse.json({ error: 'AI request failed' }, { status: 502 });
     }
-
-    const anthropicData = await anthropicResponse.json();
-    const assistantContent = anthropicData.content?.[0]?.text ?? 'Sorry, I could not generate a response.';
 
     // Persist both messages
     await supabaseServer.from('assistant_conversations').insert([

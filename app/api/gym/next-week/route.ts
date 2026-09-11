@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 import type { GymPlanContent } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -120,22 +121,17 @@ export async function POST(req: NextRequest) {
       ? `Soreness: ${checkin.soreness}/5, Sleep quality: ${checkin.sleep_quality}/5, Motivation: ${checkin.motivation}/5, Pain flag: ${checkin.pain_flag}${checkin.notes ? `, Notes: "${checkin.notes}"` : ''}`
       : 'No check-in submitted — assume moderate recovery, no red flags.';
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
     }
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+    let rawText: string;
+    try {
+      rawText = await callGemini({
+        apiKey,
         system: NEXT_WEEK_SYSTEM,
+        maxOutputTokens: 4096,
         messages: [
           {
             role: 'user',
@@ -163,15 +159,11 @@ ${prsStr}
 Return ONLY the JSON object for week ${nextWeekNumber}.`,
           },
         ],
-      }),
-    });
-
-    if (!anthropicRes.ok) {
+      });
+    } catch (err) {
+      console.error('Gemini API error:', err);
       return NextResponse.json({ error: 'AI request failed' }, { status: 502 });
     }
-
-    const data = await anthropicRes.json();
-    const rawText = data.content?.[0]?.text ?? '{}';
 
     let parsed: { title: string; is_deload?: boolean; intro?: string; days: GymPlanContent['days']; recovery_notes?: string };
     try {

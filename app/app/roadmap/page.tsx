@@ -7,7 +7,7 @@ import { computeAnchorStreak } from '@/lib/utils/streaks';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Circle, Lock, Loader2, Flame, Wallet, Briefcase, TrendingUp, Moon, Dumbbell, CandlestickChart, Bot } from 'lucide-react';
+import { Check, Circle, Lock, Loader2, Flame, Wallet, TrendingUp, Moon, Dumbbell, CandlestickChart, Bot } from 'lucide-react';
 import { formatDateUK } from '@/lib/utils/dates';
 
 type RollupData = {
@@ -18,9 +18,6 @@ type RollupData = {
   // Prayer
   prayerStreak: number;
   todayPrayersCompleted: number;
-  // Job applications
-  totalApplications: number;
-  applicationsThisWeek: number;
   // Trading
   tradingSessionsThisWeek: number;
   tradingInPlanRate: number;
@@ -38,8 +35,6 @@ const EMPTY_ROLLUP: RollupData = {
   totalOut: 0,
   prayerStreak: 0,
   todayPrayersCompleted: 0,
-  totalApplications: 0,
-  applicationsThisWeek: 0,
   tradingSessionsThisWeek: 0,
   tradingInPlanRate: 0,
   gymSessionsThisWeek: 0,
@@ -56,10 +51,10 @@ const PHASE_METRICS: Record<string, { key: keyof RollupData; label: string; form
     { key: 'botCouncilChecksThisWeek', label: 'BotCouncil checks', format: (v) => `${v}/7`, icon: Bot },
   ],
   search_sprint: [
-    { key: 'applicationsThisWeek', label: 'Applications this week', format: (v) => `${v}`, icon: Briefcase },
-    { key: 'totalApplications', label: 'Total applications', format: (v) => `${v}`, icon: Briefcase },
+    { key: 'anchorStreak', label: 'Anchor streak', format: (v) => `${v} days`, icon: Flame },
     { key: 'tradingSessionsThisWeek', label: 'Trading sessions', format: (v) => `${v}`, icon: CandlestickChart },
     { key: 'prayerStreak', label: 'Prayer streak', format: (v) => `${v} days`, icon: Moon },
+    { key: 'botCouncilChecksThisWeek', label: 'BotCouncil checks', format: (v) => `${v}/7`, icon: Bot },
   ],
   stabilise: [
     { key: 'netPosition', label: 'Net position', format: (v) => `£${v.toFixed(2)}`, icon: Wallet },
@@ -92,7 +87,6 @@ export default function RoadmapPage() {
     const [
       financeRes,
       prayerRes,
-      jobAppsRes,
       tradingRes,
       gymRes,
       anchorRes,
@@ -100,7 +94,6 @@ export default function RoadmapPage() {
     ] = await Promise.all([
       supabase.from('finance_entries').select('*'),
       supabase.from('prayer_logs').select('*'),
-      supabase.from('job_applications').select('*'),
       supabase.from('trading_sessions').select('*'),
       supabase.from('gym_sessions').select('*'),
       supabase.from('anchor_logs').select('*'),
@@ -117,10 +110,6 @@ export default function RoadmapPage() {
     const prayerLogs = prayerRes.data ?? [];
     const prayerStreak = computePrayerStreak(prayerLogs, todayStr);
     const todayPrayersCompleted = prayerLogs.filter((l: { log_date: string; completed: boolean }) => l.log_date === todayStr && l.completed).length;
-
-    // Job applications
-    const jobApps = jobAppsRes.data ?? [];
-    const applicationsThisWeek = jobApps.filter((a: { created_at: string }) => new Date(a.created_at) >= weekAgo).length;
 
     // Trading
     const tradingSessions = tradingRes.data ?? [];
@@ -152,8 +141,6 @@ export default function RoadmapPage() {
       totalOut,
       prayerStreak,
       todayPrayersCompleted,
-      totalApplications: jobApps.length,
-      applicationsThisWeek,
       tradingSessionsThisWeek: tradingThisWeek.length,
       tradingInPlanRate,
       gymSessionsThisWeek: gymThisWeek,

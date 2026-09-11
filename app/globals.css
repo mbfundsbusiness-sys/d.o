@@ -72,6 +72,20 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(ellipse 50rem 42rem at 8% 8%, hsl(205 90% 68% / 0.55), transparent 62%),
+      radial-gradient(ellipse 42rem 40rem at 95% 0%, hsl(280 75% 70% / 0.4), transparent 58%),
+      radial-gradient(ellipse 46rem 44rem at 60% 90%, hsl(190 85% 62% / 0.38), transparent 60%),
+      radial-gradient(ellipse 40rem 36rem at 15% 95%, hsl(325 75% 65% / 0.28), transparent 55%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+  .light body {
+    background-image:
+      radial-gradient(ellipse 50rem 42rem at 8% 8%, hsl(205 90% 62% / 0.3), transparent 62%),
+      radial-gradient(ellipse 42rem 40rem at 95% 0%, hsl(280 75% 65% / 0.22), transparent 58%),
+      radial-gradient(ellipse 46rem 44rem at 60% 90%, hsl(190 85% 55% / 0.2), transparent 60%),
+      radial-gradient(ellipse 40rem 36rem at 15% 95%, hsl(325 75% 60% / 0.16), transparent 55%);
   }
 }
 
@@ -93,5 +107,23 @@
   }
   .border-warning {
     border-color: hsl(var(--warning));
+  }
+
+  /* Liquid glass — frosted, translucent surfaces */
+  .glass-panel {
+    background-color: hsl(var(--foreground) / 0.08);
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid hsl(var(--foreground) / 0.14);
+  }
+  .glass-surface {
+    background-color: hsl(var(--foreground) / 0.07);
+    background-image: linear-gradient(165deg, hsl(var(--foreground) / 0.09), transparent 40%);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid hsl(var(--foreground) / 0.14);
+    box-shadow:
+      inset 0 1px 0 0 hsl(var(--foreground) / 0.14),
+      0 12px 40px -14px hsl(var(--background) / 0.75);
   }
 }

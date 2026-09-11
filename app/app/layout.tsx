@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AppShell } from '@/components/app-shell';
 import { TimerProvider } from '@/lib/timer/context';
+import { ScheduleAlertsProvider } from '@/lib/notifications/schedule-alerts';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
@@ -36,7 +37,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <TimerProvider>
-      <AppShell currentPath={pathname}>{children}</AppShell>
+      <ScheduleAlertsProvider>
+        <AppShell currentPath={pathname}>{children}</AppShell>
+      </ScheduleAlertsProvider>
     </TimerProvider>
   );
 }

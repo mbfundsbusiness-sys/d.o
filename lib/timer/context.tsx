@@ -11,6 +11,8 @@ export type RunningSession = {
   activity_type?: string;
   workout_type?: string;
   in_plan?: boolean;
+  title?: string;
+  pages?: number;
   note?: string | null;
 };
 
@@ -22,6 +24,7 @@ type TimerContextValue = {
     activity_type?: string;
     workout_type?: string;
     in_plan?: boolean;
+    title?: string;
     note?: string;
   }) => Promise<void>;
   completeSession: (opts?: { note?: string; in_plan?: boolean }) => Promise<void>;
@@ -43,6 +46,7 @@ const TABLE_MAP: Record<ActivityKind, string> = {
   gym: 'gym_sessions',
   language: 'language_sessions',
   job_search: 'job_search_sessions',
+  reading: 'reading_sessions',
 };
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
@@ -58,7 +62,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Check all four tables for an open session (ended_at IS NULL)
-    const kinds: ActivityKind[] = ['trading', 'gym', 'language', 'job_search'];
+    const kinds: ActivityKind[] = ['trading', 'gym', 'language', 'job_search', 'reading'];
     for (const kind of kinds) {
       const table = TABLE_MAP[kind];
       const { data, error } = await supabase
@@ -79,6 +83,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
           activity_type: data.activity_type,
           workout_type: data.workout_type,
           in_plan: data.in_plan,
+          title: data.title,
+          pages: data.pages,
           note: data.note,
         });
         setLoading(false);
@@ -103,6 +109,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       activity_type?: string;
       workout_type?: string;
       in_plan?: boolean;
+      title?: string;
       note?: string;
     }
   ) => {
@@ -116,6 +123,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     if (opts?.activity_type) insert.activity_type = opts.activity_type;
     if (opts?.workout_type) insert.workout_type = opts.workout_type;
     if (opts?.in_plan !== undefined) insert.in_plan = opts.in_plan;
+    if (opts?.title) insert.title = opts.title;
     if (opts?.note) insert.note = opts.note;
 
     const { data, error } = await supabase
@@ -205,4 +213,5 @@ export const ACTIVITY_LABELS: Record<ActivityKind, string> = {
   gym: 'Gym',
   language: 'Language',
   job_search: 'Job Search',
+  reading: 'Reading',
 };

@@ -108,18 +108,9 @@ export default function LanguagePage() {
     setShowAssessment(true);
   }
 
-  async function handleAssessmentComplete(_assessment: LanguageAssessment) {
-    setShowAssessment(false);
+  async function generateModulesFor(language: string) {
     setGenerating(true);
-
-    // Refresh assessments
-    const { data: newAssessments } = await supabase
-      .from('language_assessments')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setAssessments(newAssessments ?? []);
-
-    // Generate modules
+    setError(null);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
@@ -131,18 +122,31 @@ export default function LanguagePage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ language: _assessment.language, count: 4 }),
+        body: JSON.stringify({ language, count: 4 }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate modules');
 
-      await fetchModules(_assessment.language);
+      await fetchModules(language);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate curriculum');
     } finally {
       setGenerating(false);
     }
+  }
+
+  async function handleAssessmentComplete(_assessment: LanguageAssessment) {
+    setShowAssessment(false);
+
+    // Refresh assessments
+    const { data: newAssessments } = await supabase
+      .from('language_assessments')
+      .select('*')
+      .order('created_at', { ascending: false });
+    setAssessments(newAssessments ?? []);
+
+    await generateModulesFor(_assessment.language);
   }
 
   async function handleModuleCompleted() {
@@ -273,6 +277,7 @@ export default function LanguagePage() {
                   onSelect={setSelectedModule}
                   selectedId={undefined}
                   generating={generating}
+                  onGenerate={() => generateModulesFor(selectedLanguage)}
                 />
               </CardContent>
             </Card>

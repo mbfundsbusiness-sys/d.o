@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 
 export const runtime = 'nodejs';
 
@@ -85,35 +86,26 @@ Your role:
       }
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
     }
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+    let assistantContent: string;
+    try {
+      assistantContent = await callGemini({
+        apiKey,
         system: systemPrompt,
+        maxOutputTokens: 1024,
         messages: [
           ...historyMessages,
           { role: 'user' as const, content: message },
         ],
-      }),
-    });
-
-    if (!anthropicRes.ok) {
+      });
+    } catch (err) {
+      console.error('Gemini API error:', err);
       return NextResponse.json({ error: 'AI request failed' }, { status: 502 });
     }
-
-    const data = await anthropicRes.json();
-    const assistantContent = data.content?.[0]?.text ?? 'Sorry, I could not generate a response.';
 
     // Persist both messages
     await supabaseServer.from('language_tutor_messages').insert([

@@ -4,22 +4,28 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth/provider';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Compass, LayoutDashboard, Map, Briefcase, LogOut, Languages, Sparkles, Wallet, Moon, CandlestickChart, Bot, Dumbbell } from 'lucide-react';
-import { useState } from 'react';
+import { Compass, LayoutDashboard, Map, LogOut, Languages, Sparkles, Wallet, Moon, CandlestickChart, Bot, Dumbbell, ChevronLeft, ChevronRight, Feather, BookOpen, CalendarClock, Settings } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { ActivityTimerWidget } from '@/components/activity-timer-widget';
+import { ScheduleAlertBanner } from '@/components/schedule-alert-banner';
 
 const NAV_ITEMS = [
   { href: '/app', label: 'Today', icon: LayoutDashboard },
+  { href: '/app/schedule', label: 'Schedule', icon: CalendarClock },
   { href: '/app/roadmap', label: 'Roadmap', icon: Map },
-  { href: '/app/applications', label: 'Applications', icon: Briefcase },
   { href: '/app/trading', label: 'Trading', icon: CandlestickChart },
   { href: '/app/gym', label: 'Gym', icon: Dumbbell },
   { href: '/app/language', label: 'Language', icon: Languages },
+  { href: '/app/reading', label: 'Reading', icon: BookOpen },
+  { href: '/app/ghostwriter', label: 'Ghostwriter', icon: Feather },
   { href: '/app/finance', label: 'Finance', icon: Wallet },
   { href: '/app/prayer', label: 'Prayer', icon: Moon },
   { href: '/app/botcouncil', label: 'BotCouncil', icon: Bot },
   { href: '/app/assistant', label: 'Assistant', icon: Sparkles },
+  { href: '/app/settings', label: 'Settings', icon: Settings },
 ];
+
+const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
 
 export function AppShell({
   children,
@@ -30,22 +36,53 @@ export function AppShell({
 }) {
   const { signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
+    } catch {
+      // localStorage unavailable — keep default expanded
+    }
+    setHydrated(true);
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-60 flex-col border-r border-border bg-card lg:flex">
-        <div className="flex items-center gap-3 border-b border-border px-6 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
+      <aside
+        className={cn(
+          'glass-panel fixed left-0 top-0 z-40 hidden h-screen flex-col lg:flex',
+          hydrated && 'transition-[width] duration-200 ease-in-out',
+          collapsed ? 'w-[4.5rem]' : 'w-60'
+        )}
+      >
+        <div className={cn('flex items-center gap-3 border-b border-white/10 px-4 py-5', collapsed && 'justify-center px-0')}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary">
             <Compass className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold leading-tight">Dedication</span>
-            <span className="text-xs text-muted-foreground leading-tight">Optimiser</span>
-          </div>
+          {!collapsed && (
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-semibold leading-tight">Dedication</span>
+              <span className="truncate text-xs text-muted-foreground leading-tight">Optimiser</span>
+            </div>
+          )}
         </div>
 
-        <ActivityTimerWidget />
+        {!collapsed && <ActivityTimerWidget />}
 
         <nav className="flex-1 space-y-1 px-3 py-2">
           {NAV_ITEMS.map((item) => {
@@ -58,35 +95,48 @@ export function AppShell({
               <Link
                 key={item.href}
                 href={item.href}
+                title={collapsed ? item.label : undefined}
                 className={cn(
-                  'flex items-center gap-3 border-l-2 px-3 py-2 text-sm transition-colors',
+                  'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm transition-colors',
+                  collapsed && 'justify-center px-0',
                   isActive
-                    ? 'border-foreground font-semibold text-foreground'
-                    : 'border-transparent font-medium text-muted-foreground hover:border-border hover:text-foreground'
+                    ? 'border-foreground bg-white/[0.06] font-semibold text-foreground'
+                    : 'border-transparent font-medium text-muted-foreground hover:border-white/20 hover:bg-white/[0.04] hover:text-foreground'
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {item.label}
+                <Icon className="h-4 w-4 shrink-0" />
+                {!collapsed && item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-border p-3">
+        <div className="border-t border-white/10 p-3">
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-foreground"
+            title={collapsed ? 'Collapse sidebar' : undefined}
+            className={cn('w-full text-muted-foreground hover:text-foreground', collapsed ? 'justify-center px-0' : 'justify-start')}
+            onClick={toggleCollapsed}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="mr-2 h-4 w-4" />}
+            {!collapsed && 'Collapse'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            title={collapsed ? 'Sign out' : undefined}
+            className={cn('w-full text-muted-foreground hover:text-foreground', collapsed ? 'justify-center px-0' : 'justify-start')}
             onClick={signOut}
           >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign out
+            <LogOut className={cn('h-4 w-4', !collapsed && 'mr-2')} />
+            {!collapsed && 'Sign out'}
           </Button>
         </div>
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-card px-4 py-3 lg:hidden">
+      <header className="glass-panel sticky top-0 z-40 flex items-center justify-between px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <Compass className="h-4 w-4 text-primary-foreground" />
@@ -105,7 +155,7 @@ export function AppShell({
       </header>
 
       {mobileOpen && (
-        <div className="absolute left-0 right-0 z-30 border-b border-border bg-card px-4 py-3 lg:hidden">
+        <div className="glass-panel absolute left-0 right-0 z-30 border-t-0 px-4 py-3 lg:hidden">
           <nav className="space-y-1">
             {NAV_ITEMS.map((item) => {
               const isActive =
@@ -119,10 +169,10 @@ export function AppShell({
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    'flex items-center gap-3 border-l-2 px-3 py-2 text-sm transition-colors',
+                    'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm transition-colors',
                     isActive
-                      ? 'border-foreground font-semibold text-foreground'
-                      : 'border-transparent font-medium text-muted-foreground hover:border-border hover:text-foreground'
+                      ? 'border-foreground bg-white/[0.06] font-semibold text-foreground'
+                      : 'border-transparent font-medium text-muted-foreground hover:border-white/20 hover:text-foreground'
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -142,8 +192,9 @@ export function AppShell({
       )}
 
       {/* Main content */}
-      <main className="lg:pl-60">
+      <main className={cn(hydrated && 'transition-[padding] duration-200 ease-in-out', collapsed ? 'lg:pl-[4.5rem]' : 'lg:pl-60')}>
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+          <ScheduleAlertBanner />
           {children}
         </div>
       </main>

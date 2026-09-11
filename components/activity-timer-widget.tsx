@@ -20,6 +20,7 @@ const KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
   { value: 'trading', label: 'Trading' },
   { value: 'gym', label: 'Gym' },
   { value: 'language', label: 'Language' },
+  { value: 'reading', label: 'Reading' },
 ];
 
 const LANGUAGE_OPTIONS = ['Spanish', 'French', 'German', 'Arabic', 'Japanese', 'Mandarin', 'Italian', 'Portuguese'];
@@ -32,6 +33,7 @@ export function ActivityTimerWidget() {
   const [customLanguage, setCustomLanguage] = useState('');
   const [activityType, setActivityType] = useState('vocabulary');
   const [workoutType, setWorkoutType] = useState('');
+  const [readingTitle, setReadingTitle] = useState('');
   const [note, setNote] = useState('');
   const [inPlan, setInPlan] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,9 +51,13 @@ export function ActivityTimerWidget() {
       if (selectedKind === 'gym' && workoutType.trim()) {
         opts.workout_type = workoutType.trim();
       }
+      if (selectedKind === 'reading' && readingTitle.trim()) {
+        opts.title = readingTitle.trim();
+      }
       if (note.trim()) opts.note = note.trim();
       await startSession(selectedKind, opts);
       setNote('');
+      setReadingTitle('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start');
     } finally {
@@ -183,6 +189,18 @@ export function ActivityTimerWidget() {
           </div>
         )}
 
+        {selectedKind === 'reading' && (
+          <div className="space-y-1">
+            <Label className="text-xs">Book / material (optional)</Label>
+            <Input
+              placeholder="e.g. Atomic Habits"
+              value={readingTitle}
+              onChange={(e) => setReadingTitle(e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+        )}
+
         <Input
           placeholder="Note (optional)"
           value={note}
@@ -259,6 +277,9 @@ function RunningWidget({
       )}
       {running.workout_type && (
         <p className="text-center text-xs text-muted-foreground">{running.workout_type}</p>
+      )}
+      {running.kind === 'reading' && running.title && (
+        <p className="text-center text-xs text-muted-foreground">{running.title}</p>
       )}
 
       {running.kind === 'trading' && (

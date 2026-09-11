@@ -82,7 +82,7 @@ export type JobApplicationUpdate = {
 
 // --- Activity session types ---
 
-export type ActivityKind = 'trading' | 'gym' | 'language' | 'job_search';
+export type ActivityKind = 'trading' | 'gym' | 'language' | 'job_search' | 'reading';
 
 export type LanguageActivityType =
   | 'vocabulary'
@@ -131,6 +131,18 @@ export type JobSearchSession = {
   started_at: string;
   ended_at: string | null;
   duration_min: number | null;
+  note: string | null;
+  created_at: string;
+};
+
+export type ReadingSession = {
+  id: string;
+  user_id: string;
+  started_at: string;
+  ended_at: string | null;
+  duration_min: number | null;
+  title: string | null;
+  pages: number | null;
   note: string | null;
   created_at: string;
 };
@@ -340,5 +352,89 @@ export type GymPR = {
   value: string;
   achieved_at: string;
   note: string | null;
+  created_at: string;
+};
+
+// --- Reading module types ---
+
+export type ReadingMaterialStatus = 'reading' | 'completed' | 'queued';
+
+export type ReadingMaterial = {
+  id: string;
+  user_id: string;
+  title: string;
+  author: string | null;
+  status: ReadingMaterialStatus;
+  total_pages: number | null;
+  current_page: number;
+  created_at: string;
+  updated_at: string;
+};
+
+// --- Schedule + settings types ---
+
+export type ScheduleActivityType = 'trading' | 'botcouncil' | 'reading' | 'custom';
+
+export type ScheduleBlock = {
+  id: string;
+  user_id: string;
+  day_of_week: number;
+  activity_type: ScheduleActivityType;
+  start_time: string;
+  end_time: string;
+  label: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserSettings = {
+  id: string;
+  user_id: string;
+  timezone: string;
+  jummah_time: string | null;
+  jummah_duration_min: number;
+  created_at: string;
+  updated_at: string;
+};
+
+// --- Ghostwriter types ---
+
+export type GhostwriterStyleLyrics = {
+  id: string;
+  user_id: string;
+  title: string;
+  lyrics_text: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type GhostwriterReference = {
+  id: string;
+  user_id: string;
+  artist: string | null;
+  track: string | null;
+  description: string;
+  created_at: string;
+};
+
+export type GhostwriterSongStatus = 'draft' | 'finished';
+
+export type GhostwriterSong = {
+  id: string;
+  user_id: string;
+  title: string;
+  status: GhostwriterSongStatus;
+  brief: string | null;
+  lyrics_text: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GhostwriterChatMessage = {
+  id: string;
+  user_id: string;
+  song_id: string;
+  role: 'user' | 'assistant';
+  content: string;
   created_at: string;
 };

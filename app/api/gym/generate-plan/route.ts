@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 import type { GymPlanContent } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -61,22 +62,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A plan already exists. Complete the current week to generate the next one.' }, { status: 409 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
     }
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+    let rawText: string;
+    try {
+      rawText = await callGemini({
+        apiKey,
         system: PLAN_GEN_SYSTEM,
+        maxOutputTokens: 4096,
         messages: [
           {
             role: 'user',
@@ -90,15 +86,11 @@ Injuries/limitations: ${assessment.injuries_notes || 'None'}
 Return ONLY the JSON object for week 1.`,
           },
         ],
-      }),
-    });
-
-    if (!anthropicRes.ok) {
+      });
+    } catch (err) {
+      console.error('Gemini API error:', err);
       return NextResponse.json({ error: 'AI request failed' }, { status: 502 });
     }
-
-    const data = await anthropicRes.json();
-    const rawText = data.content?.[0]?.text ?? '{}';
 
     let parsed: { title: string; intro?: string; days: GymPlanContent['days']; recovery_notes?: string };
     try {

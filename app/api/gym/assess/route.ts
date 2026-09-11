@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
+import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 import type { GymEquipment, GymExperienceLevel, GymGoal } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -48,36 +49,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'All fields required' }, { status: 400 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
-      return NextResponse.json({ error: 'AI not configured. Add ANTHROPIC_API_KEY in the secrets panel.' }, { status: 503 });
+      return NextResponse.json({ error: 'AI not configured. Add GEMINI_API_KEY in the secrets panel.' }, { status: 503 });
     }
 
     // Generate AI summary
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 256,
+    let aiSummary = 'Assessment complete.';
+    try {
+      aiSummary = await callGemini({
+        apiKey,
         system: ASSESS_SYSTEM,
+        maxOutputTokens: 256,
         messages: [
           {
             role: 'user',
             content: `Goal: ${goal}\nExperience: ${experience_level}\nDays per week: ${days_per_week}\nEquipment: ${equipment}\nInjuries/limitations: ${injuries_notes || 'None given'}`,
           },
         ],
-      }),
-    });
-
-    let aiSummary = 'Assessment complete.';
-    if (anthropicRes.ok) {
-      const data = await anthropicRes.json();
-      aiSummary = data.content?.[0]?.text ?? aiSummary;
+      });
+    } catch (err) {
+      console.error('Gemini API error:', err);
     }
 
     // One assessment per user — upsert on retake
