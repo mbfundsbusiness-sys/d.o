@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Send, Loader2, Check, ArrowLeft, Play, Square, MessageSquare, Sparkles, User } from 'lucide-react';
 import { useTimer, formatDuration } from '@/lib/timer/context';
 import { FOCUS_LABELS } from '@/components/language-module-list';
+import { SpeakButton } from '@/components/speak-button';
 
 type ModuleDetailProps = {
   module: LanguageModule;
@@ -234,7 +235,7 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {/* Module content */}
-      <ModuleContentDisplay content={content} focusArea={focusArea} />
+      <ModuleContentDisplay content={content} focusArea={focusArea} language={module.language} />
 
       {/* Tutor chat */}
       <Card>
@@ -283,7 +284,15 @@ export function ModuleDetail({ module, onBack, onModuleCompleted }: ModuleDetail
   );
 }
 
-function ModuleContentDisplay({ content, focusArea }: { content: ModuleContent; focusArea: ModuleFocusArea }) {
+function ModuleContentDisplay({
+  content,
+  focusArea,
+  language,
+}: {
+  content: ModuleContent;
+  focusArea: ModuleFocusArea;
+  language: string;
+}) {
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
@@ -298,11 +307,17 @@ function ModuleContentDisplay({ content, focusArea }: { content: ModuleContent; 
             <div className="grid gap-2 sm:grid-cols-2">
               {content.words.map((w, i) => (
                 <div key={i} className="rounded-lg border border-border p-3">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-sm font-medium">{w.word}</span>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      {w.word}
+                      <SpeakButton text={w.word} language={language} />
+                    </span>
                     <span className="text-xs text-muted-foreground">{w.translation}</span>
                   </div>
-                  <p className="mt-1 text-xs italic text-muted-foreground">{w.example}</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-xs italic text-muted-foreground">
+                    {w.example}
+                    <SpeakButton text={w.example} language={language} />
+                  </p>
                   <p className="text-xs text-muted-foreground/70">{w.example_translation}</p>
                 </div>
               ))}
@@ -326,13 +341,19 @@ function ModuleContentDisplay({ content, focusArea }: { content: ModuleContent; 
                 content.practice_sentences.map((p, i) => (
                   <div key={i} className="rounded-lg border border-border p-3 text-sm">
                     <p className="font-medium">{p.prompt}</p>
-                    <p className="mt-1 text-muted-foreground">{p.answer}</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
+                      {p.answer}
+                      <SpeakButton text={p.answer} language={language} />
+                    </p>
                   </div>
                 ))
               ) : (
                 <div className="rounded-lg border border-border p-3 text-sm">
                   <p className="font-medium">{content.practice_sentences.prompt}</p>
-                  <p className="mt-1 text-muted-foreground">{content.practice_sentences.answer}</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
+                    {content.practice_sentences.answer}
+                    <SpeakButton text={content.practice_sentences.answer} language={language} />
+                  </p>
                 </div>
               )}
             </div>
@@ -356,7 +377,10 @@ function ModuleContentDisplay({ content, focusArea }: { content: ModuleContent; 
         {content.listening_prompt && (
           <div className="space-y-2">
             <h4 className="text-sm font-semibold">Listening Exercise</h4>
-            <p className="text-sm leading-relaxed italic">{content.listening_prompt}</p>
+            <p className="flex items-start gap-1.5 text-sm leading-relaxed italic">
+              {content.listening_prompt}
+              <SpeakButton text={content.listening_prompt} language={language} />
+            </p>
             {content.tips && content.tips.length > 0 && (
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Tips:</p>
@@ -372,7 +396,10 @@ function ModuleContentDisplay({ content, focusArea }: { content: ModuleContent; 
         {content.reading_text && (
           <div className="space-y-2">
             <h4 className="text-sm font-semibold">Reading Passage</h4>
-            <p className="text-sm leading-relaxed">{content.reading_text}</p>
+            <p className="flex items-start gap-1.5 text-sm leading-relaxed">
+              {content.reading_text}
+              <SpeakButton text={content.reading_text} language={language} />
+            </p>
             {content.reading_questions && content.reading_questions.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Comprehension questions:</p>
