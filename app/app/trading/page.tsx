@@ -1,18 +1,22 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, type TradingSession } from '@/lib/supabase/client';
 import { useTimer, formatDuration } from '@/lib/timer/context';
+import { useAuth } from '@/lib/auth/provider';
 import { TradingStats } from '@/components/trading-stats';
 import { TradingHistory } from '@/components/trading-history';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Play, Square } from 'lucide-react';
+import { Loader2, Play, Square, ImagePlus, X } from 'lucide-react';
+
+const SCREENSHOT_BUCKET = 'trading-screenshots';
 
 export default function TradingPage() {
   const { running, startSession, completeSession } = useTimer();
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<TradingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +25,10 @@ export default function TradingPage() {
   const [inPlan, setInPlan] = useState<boolean | null>(null);
   const [note, setNote] = useState('');
   const [elapsed, setElapsed] = useState(0);
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isTradingRunning = running?.kind === 'trading';
 
@@ -72,19 +80,59 @@ export default function TradingPage() {
     }
   }
 
+  function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setScreenshot(file);
+    setScreenshotPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+  }
+
+  function clearScreenshot() {
+    setScreenshot(null);
+    setScreenshotPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   async function handleComplete() {
-    if (inPlan === null) return;
+    if (inPlan === null || !running) return;
     setError(null);
     setCompleting(true);
+    const sessionId = running.id;
+
     try {
+      if (screenshot && user) {
+        setUploadingScreenshot(true);
+        const ext = screenshot.name.split('.').pop() || 'png';
+        const path = `${user.id}/${sessionId}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from(SCREENSHOT_BUCKET)
+          .upload(path, screenshot, { upsert: true, contentType: screenshot.type || 'image/png' });
+        if (uploadError) throw new Error(uploadError.message);
+
+        const { data: publicUrlData } = supabase.storage.from(SCREENSHOT_BUCKET).getPublicUrl(path);
+        const { error: updateError } = await supabase
+          .from('trading_sessions')
+          .update({ screenshot_url: publicUrlData.publicUrl })
+          .eq('id', sessionId);
+        if (updateError) throw new Error(updateError.message);
+        setUploadingScreenshot(false);
+      }
+
       await completeSession({ in_plan: inPlan, note: note.trim() || undefined });
       setInPlan(null);
       setNote('');
+      clearScreenshot();
       await fetchSessions();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to complete session');
     } finally {
       setCompleting(false);
+      setUploadingScreenshot(false);
     }
   }
 
@@ -147,6 +195,45 @@ export default function TradingPage() {
                 />
               </div>
 
+              <div className="space-y-1">
+                <Label className="text-xs">Chart screenshot at close (optional)</Label>
+                {screenshotPreview ? (
+                  <div className="relative inline-block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={screenshotPreview}
+                      alt="Chart at close"
+                      className="max-h-40 rounded-lg border border-border"
+                    />
+                    <button
+                      type="button"
+                      onClick={clearScreenshot}
+                      className="absolute -right-2 -top-2 rounded-full bg-background p-1 text-muted-foreground shadow hover:text-destructive"
+                      title="Remove"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <ImagePlus className="mr-2 h-3.5 w-3.5" />
+                    Attach screenshot
+                  </Button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleScreenshotChange}
+                />
+              </div>
+
               <Button
                 onClick={handleComplete}
                 disabled={inPlan === null || completing}
@@ -157,7 +244,7 @@ export default function TradingPage() {
                 ) : (
                   <Square className="mr-2 h-4 w-4" />
                 )}
-                Complete session
+                {uploadingScreenshot ? 'Uploading screenshot...' : 'Complete session'}
               </Button>
             </>
           ) : (

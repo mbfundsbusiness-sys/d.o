@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth/provider';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Compass, LayoutDashboard, Map, LogOut, Languages, Sparkles, Wallet, Moon, CandlestickChart, Bot, Dumbbell, ChevronLeft, ChevronRight, Feather, BookOpen, CalendarClock, Settings } from 'lucide-react';
+import { Compass, LayoutDashboard, Map, LogOut, Languages, Sparkles, Wallet, Moon, CandlestickChart, Bot, Dumbbell, ChevronLeft, ChevronRight, Feather, BookOpen, CalendarClock, Settings, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ActivityTimerWidget } from '@/components/activity-timer-widget';
 import { ScheduleAlertBanner } from '@/components/schedule-alert-banner';
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/app/gym', label: 'Gym', icon: Dumbbell },
   { href: '/app/language', label: 'Language', icon: Languages },
   { href: '/app/reading', label: 'Reading', icon: BookOpen },
+  { href: '/app/course', label: 'Course', icon: ShieldCheck },
   { href: '/app/ghostwriter', label: 'Ghostwriter', icon: Feather },
   { href: '/app/finance', label: 'Finance', icon: Wallet },
   { href: '/app/prayer', label: 'Prayer', icon: Moon },

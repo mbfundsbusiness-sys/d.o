@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, type ReadingSession, type ReadingMaterial } from '@/lib/supabase/client';
+import { supabase, type ReadingSession, type ReadingMaterial, type ReadingHighlight } from '@/lib/supabase/client';
 import { ReadingStats } from '@/components/reading-stats';
 import { ReadingMaterialList } from '@/components/reading-material-list';
 import { ReadingSessionForm } from '@/components/reading-session-form';
+import { ReadingHighlights } from '@/components/reading-highlights';
 import { ReadingHistory } from '@/components/reading-history';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -12,6 +13,7 @@ import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 export default function ReadingPage() {
   const [sessions, setSessions] = useState<ReadingSession[]>([]);
   const [materials, setMaterials] = useState<ReadingMaterial[]>([]);
+  const [highlights, setHighlights] = useState<ReadingHighlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showLogForm, setShowLogForm] = useState(false);
@@ -19,14 +21,17 @@ export default function ReadingPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [sessRes, matRes] = await Promise.all([
+    const [sessRes, matRes, highlightRes] = await Promise.all([
       supabase.from('reading_sessions').select('*').order('started_at', { ascending: false }),
       supabase.from('reading_materials').select('*').order('created_at', { ascending: false }),
+      supabase.from('reading_highlights').select('*').order('created_at', { ascending: false }),
     ]);
     if (sessRes.error) setError(sessRes.error.message);
     if (matRes.error) setError(matRes.error.message);
+    if (highlightRes.error) setError(highlightRes.error.message);
     setSessions(sessRes.data ?? []);
     setMaterials(matRes.data ?? []);
+    setHighlights(highlightRes.data ?? []);
     setLoading(false);
   }, []);
 
@@ -80,6 +85,8 @@ export default function ReadingPage() {
           </CardContent>
         )}
       </Card>
+
+      <ReadingHighlights highlights={highlights} materialTitles={materialTitles} onChanged={fetchAll} />
 
       <ReadingHistory sessions={sessions} />
     </div>

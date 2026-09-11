@@ -8,10 +8,20 @@ import {
   useRef,
   useState,
 } from 'react';
-import { supabase, type ScheduleBlock, type UserSettings } from '@/lib/supabase/client';
+import { supabase, type ScheduleBlock, type UserSettings, type PrayerName } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/provider';
-import { londonNow } from '@/lib/utils/dates';
+import { londonNow, minutesOfDay, fmtHM } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
+
+const PRAYER_LABELS: Record<PrayerName, string> = {
+  fajr: 'Fajr',
+  dhuhr: 'Dhuhr',
+  asr: 'Asr',
+  maghrib: 'Maghrib',
+  isha: 'Isha',
+};
+
+type AlertableBlock = { id: string; label: string; startMin: number; start_time: string; end_time: string };
 
 export type ScheduleBanner = {
   id: string; // dedupe key
@@ -97,10 +107,29 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
   const check = useCallback(() => {
     if (!user) return;
     const now = londonNow();
-    const today = effectiveBlocksForDay(blocksRef.current, settingsRef.current, now.dayOfWeek);
+    const scheduleToday = effectiveBlocksForDay(blocksRef.current, settingsRef.current, now.dayOfWeek);
+
+    const prayerTimes = settingsRef.current?.prayer_times ?? {};
+    const prayerBlocks: AlertableBlock[] = (Object.keys(prayerTimes) as PrayerName[])
+      .filter((name) => prayerTimes[name])
+      .map((name) => {
+        const startMin = minutesOfDay(prayerTimes[name]!);
+        return {
+          id: `prayer-${name}`,
+          label: PRAYER_LABELS[name],
+          startMin,
+          start_time: fmtHM(prayerTimes[name]!),
+          end_time: fmtHM(prayerTimes[name]!),
+        };
+      });
+
+    const today: AlertableBlock[] = [...scheduleToday, ...prayerBlocks];
 
     for (const block of today) {
       const minsUntil = block.startMin - now.minutesOfDay;
+
+      const isPointInTime = block.start_time === block.end_time;
+      const range = isPointInTime ? block.start_time : `${block.start_time}–${block.end_time}`;
 
       const t15Key = `${block.id}:${now.dateISO}:t15`;
       if (minsUntil > 0 && minsUntil <= 15 && !firedRef.current.has(t15Key)) {
@@ -110,7 +139,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
           id: t15Key,
           kind: 't15',
           title: `${block.label} in ${minsUntil} min`,
-          body: `Starts at ${block.start_time} · ${block.start_time}–${block.end_time}`,
+          body: `Starts at ${range}`,
         });
       }
 
@@ -122,7 +151,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
           id: startKey,
           kind: 'start',
           title: `${block.label} — starting now`,
-          body: `${block.start_time}–${block.end_time}`,
+          body: range,
         });
       }
     }

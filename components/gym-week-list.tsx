@@ -78,6 +78,9 @@ export function GymWeekList({ plans, onSelect, generating }: GymWeekListProps) {
                 {p.is_deload && (
                   <Badge variant="secondary" className="text-[10px]">Deload</Badge>
                 )}
+                {p.is_manual && (
+                  <Badge variant="secondary" className="text-[10px]">Your own</Badge>
+                )}
               </div>
               <p className="text-sm font-medium truncate">{p.title}</p>
             </div>

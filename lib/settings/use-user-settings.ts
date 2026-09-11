@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase, type UserSettings } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/provider';
 
-type SaveInput = Partial<Pick<UserSettings, 'jummah_time' | 'jummah_duration_min' | 'timezone'>>;
+type SaveInput = Partial<
+  Pick<UserSettings, 'jummah_time' | 'jummah_duration_min' | 'timezone' | 'prayer_times'>
+>;
 
 type UseUserSettings = {
   settings: UserSettings | null;

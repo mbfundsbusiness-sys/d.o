@@ -7,9 +7,10 @@ import { GymAssessmentDialog } from '@/components/gym-assessment-dialog';
 import { GymWeekList } from '@/components/gym-week-list';
 import { GymWeekDetail } from '@/components/gym-week-detail';
 import { GymPRTracker } from '@/components/gym-pr-tracker';
+import { GymManualPlanDialog } from '@/components/gym-manual-plan-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, Dumbbell } from 'lucide-react';
+import { Loader2, Sparkles, Dumbbell, PenLine } from 'lucide-react';
 
 export default function GymPage() {
   const [sessions, setSessions] = useState<GymSession[]>([]);
@@ -20,6 +21,7 @@ export default function GymPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAssessment, setShowAssessment] = useState(false);
+  const [showManualPlan, setShowManualPlan] = useState(false);
   const [generating, setGenerating] = useState(false);
   const hasAutoSelected = useRef(false);
 
@@ -120,17 +122,24 @@ export default function GymPage() {
 
       <GymStats sessions={sessions} />
 
-      {!assessment ? (
+      {!assessment && plans.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
             <Dumbbell className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground max-w-sm">
-              Complete a short assessment and the AI trainer will build your first week's plan.
+              Complete a short assessment and the AI trainer will build your first week's plan —
+              or write your own week yourself, no AI involved.
             </p>
-            <Button onClick={handleStartAssessment}>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Start assessment
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleStartAssessment}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Start assessment
+              </Button>
+              <Button variant="outline" onClick={() => setShowManualPlan(true)}>
+                <PenLine className="mr-2 h-4 w-4" />
+                Write your own week
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : selectedPlan ? (
@@ -142,14 +151,20 @@ export default function GymPage() {
         />
       ) : (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Dumbbell className="h-5 w-5" />
               Training plan
             </CardTitle>
-            <span className="text-xs text-muted-foreground">
-              {plans.filter((p) => p.completed).length} / {plans.length} weeks completed
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">
+                {plans.filter((p) => p.completed).length} / {plans.length} weeks completed
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setShowManualPlan(true)}>
+                <PenLine className="mr-1 h-3.5 w-3.5" />
+                Write a week
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <GymWeekList plans={plans} onSelect={setSelectedPlan} generating={generating} />
@@ -161,6 +176,16 @@ export default function GymPage() {
         open={showAssessment}
         onClose={() => setShowAssessment(false)}
         onComplete={handleAssessmentComplete}
+      />
+
+      <GymManualPlanDialog
+        open={showManualPlan}
+        nextWeekNumber={(plans[plans.length - 1]?.week_number ?? 0) + 1}
+        onClose={() => setShowManualPlan(false)}
+        onSaved={() => {
+          setShowManualPlan(false);
+          fetchAll();
+        }}
       />
 
       <GymPRTracker prs={prs} onChanged={fetchAll} />

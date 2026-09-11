@@ -13,6 +13,7 @@ export type RunningSession = {
   in_plan?: boolean;
   title?: string;
   pages?: number;
+  course_name?: string;
   note?: string | null;
 };
 
@@ -25,6 +26,7 @@ type TimerContextValue = {
     workout_type?: string;
     in_plan?: boolean;
     title?: string;
+    course_name?: string;
     note?: string;
   }) => Promise<void>;
   completeSession: (opts?: { note?: string; in_plan?: boolean }) => Promise<void>;
@@ -47,6 +49,7 @@ const TABLE_MAP: Record<ActivityKind, string> = {
   language: 'language_sessions',
   job_search: 'job_search_sessions',
   reading: 'reading_sessions',
+  course: 'course_sessions',
 };
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
@@ -62,7 +65,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Check all four tables for an open session (ended_at IS NULL)
-    const kinds: ActivityKind[] = ['trading', 'gym', 'language', 'job_search', 'reading'];
+    const kinds: ActivityKind[] = ['trading', 'gym', 'language', 'job_search', 'reading', 'course'];
     for (const kind of kinds) {
       const table = TABLE_MAP[kind];
       const { data, error } = await supabase
@@ -85,6 +88,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
           in_plan: data.in_plan,
           title: data.title,
           pages: data.pages,
+          course_name: data.course_name,
           note: data.note,
         });
         setLoading(false);
@@ -110,6 +114,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       workout_type?: string;
       in_plan?: boolean;
       title?: string;
+      course_name?: string;
       note?: string;
     }
   ) => {
@@ -124,6 +129,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     if (opts?.workout_type) insert.workout_type = opts.workout_type;
     if (opts?.in_plan !== undefined) insert.in_plan = opts.in_plan;
     if (opts?.title) insert.title = opts.title;
+    if (opts?.course_name) insert.course_name = opts.course_name;
     if (opts?.note) insert.note = opts.note;
 
     const { data, error } = await supabase
@@ -214,4 +220,5 @@ export const ACTIVITY_LABELS: Record<ActivityKind, string> = {
   language: 'Language',
   job_search: 'Job Search',
   reading: 'Reading',
+  course: 'Course',
 };

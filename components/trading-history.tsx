@@ -32,7 +32,7 @@ export function TradingHistory({ sessions }: { sessions: TradingSession[] }) {
         {completed.map((s) => (
           <div
             key={s.id}
-            className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-sm font-semibold">
@@ -46,10 +46,18 @@ export function TradingHistory({ sessions }: { sessions: TradingSession[] }) {
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">{s.duration_min} min</p>
+                {s.note && <p className="mt-1 text-xs text-muted-foreground">{s.note}</p>}
               </div>
             </div>
-            {s.note && (
-              <p className="text-xs text-muted-foreground sm:text-right">{s.note}</p>
+            {s.screenshot_url && (
+              <a href={s.screenshot_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={s.screenshot_url}
+                  alt="Chart at close"
+                  className="h-16 w-24 rounded-lg border border-border object-cover"
+                />
+              </a>
             )}
           </div>
         ))}

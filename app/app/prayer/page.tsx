@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Check, Flame, Sunrise, Sun, Sunset, Moon, CloudSun } from 'lucide-react';
-import { todayISO, formatDateUK } from '@/lib/utils/dates';
+import { todayISO, formatDateUK, fmtHM } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils';
+import { useUserSettings } from '@/lib/settings/use-user-settings';
+import Link from 'next/link';
 
 const PRAYERS: { name: PrayerName; label: string; icon: typeof Sunrise }[] = [
   { name: 'fajr', label: 'Fajr', icon: Sunrise },
@@ -22,6 +24,7 @@ export default function PrayerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const { settings: userSettings } = useUserSettings();
 
   const today = todayISO();
 
@@ -170,6 +173,15 @@ export default function PrayerPage() {
           A web app can't reliably send notifications while your phone is locked.
           Use it to check in and record, not to be reminded.
         </p>
+        {!userSettings?.prayer_times || Object.keys(userSettings.prayer_times).length === 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Want your prayer times shown here (and included in the in-app schedule alerts)?{' '}
+            <Link href="/app/settings" className="underline underline-offset-2 hover:text-foreground">
+              Set them in Settings
+            </Link>
+            .
+          </p>
+        ) : null}
       </div>
 
       {error && (
@@ -252,6 +264,11 @@ export default function PrayerPage() {
                   )}>
                     {p.label}
                   </span>
+                  {userSettings?.prayer_times?.[p.name] && (
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {fmtHM(userSettings.prayer_times[p.name]!)}
+                    </span>
+                  )}
                 </button>
               );
             })}

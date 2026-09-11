@@ -82,7 +82,7 @@ export type JobApplicationUpdate = {
 
 // --- Activity session types ---
 
-export type ActivityKind = 'trading' | 'gym' | 'language' | 'job_search' | 'reading';
+export type ActivityKind = 'trading' | 'gym' | 'language' | 'job_search' | 'reading' | 'course';
 
 export type LanguageActivityType =
   | 'vocabulary'
@@ -99,6 +99,7 @@ export type TradingSession = {
   duration_min: number | null;
   in_plan: boolean;
   note: string | null;
+  screenshot_url: string | null;
   created_at: string;
 };
 
@@ -143,6 +144,17 @@ export type ReadingSession = {
   duration_min: number | null;
   title: string | null;
   pages: number | null;
+  note: string | null;
+  created_at: string;
+};
+
+export type CourseSession = {
+  id: string;
+  user_id: string;
+  started_at: string;
+  ended_at: string | null;
+  duration_min: number | null;
+  course_name: string | null;
   note: string | null;
   created_at: string;
 };
@@ -327,6 +339,7 @@ export type GymPlan = {
   week_number: number;
   title: string;
   is_deload: boolean;
+  is_manual: boolean;
   content_json: GymPlanContent;
   completed: boolean;
   created_at: string;
@@ -387,14 +400,71 @@ export type ScheduleBlock = {
   updated_at: string;
 };
 
+export type PrayerTimes = Partial<Record<PrayerName, string>>;
+
 export type UserSettings = {
   id: string;
   user_id: string;
   timezone: string;
   jummah_time: string | null;
   jummah_duration_min: number;
+  prayer_times: PrayerTimes;
   created_at: string;
   updated_at: string;
+};
+
+// --- Course module types (generic — cybersecurity or any other course) ---
+
+export type CourseProfile = {
+  id: string;
+  user_id: string;
+  course_name: string;
+  syllabus: string | null;
+  goal: string | null;
+  ai_summary: string | null;
+  created_at: string;
+};
+
+export type CourseModuleContent = {
+  intro?: string;
+  key_points?: string[];
+  terms?: { term: string; definition: string }[];
+  practice_questions?: { question: string; answer: string }[];
+  lab_or_exercise?: string;
+  resources?: string[];
+};
+
+export type CourseModule = {
+  id: string;
+  user_id: string;
+  course_name: string;
+  module_number: number;
+  title: string;
+  content_json: CourseModuleContent;
+  completed: boolean;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type CourseTutorMessage = {
+  id: string;
+  user_id: string;
+  module_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+};
+
+// --- Reading highlights (bookmarks) ---
+
+export type ReadingHighlight = {
+  id: string;
+  user_id: string;
+  material_id: string | null;
+  title: string;
+  quote_text: string;
+  page_number: number | null;
+  created_at: string;
 };
 
 // --- Ghostwriter types ---

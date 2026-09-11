@@ -8,8 +8,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { fmtHM } from '@/lib/utils/dates';
+import type { PrayerName, PrayerTimes } from '@/lib/supabase/client';
 
 type PermState = 'unsupported' | NotificationPermission;
+
+const PRAYER_ORDER: { name: PrayerName; label: string }[] = [
+  { name: 'fajr', label: 'Fajr' },
+  { name: 'dhuhr', label: 'Dhuhr' },
+  { name: 'asr', label: 'Asr' },
+  { name: 'maghrib', label: 'Maghrib' },
+  { name: 'isha', label: 'Isha' },
+];
 
 export default function SettingsPage() {
   const { settings, loading, error, save } = useUserSettings();
@@ -19,6 +28,10 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [perm, setPerm] = useState<PermState>('default');
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes>({});
+  const [savingPrayers, setSavingPrayers] = useState(false);
+  const [prayersSaved, setPrayersSaved] = useState(false);
+  const [prayersError, setPrayersError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof Notification === 'undefined') setPerm('unsupported');
@@ -29,6 +42,7 @@ export default function SettingsPage() {
     if (settings) {
       setJummahTime(settings.jummah_time ? fmtHM(settings.jummah_time) : '');
       setJummahDuration(String(settings.jummah_duration_min ?? 60));
+      setPrayerTimes(settings.prayer_times ?? {});
     }
   }, [settings]);
 
@@ -46,6 +60,20 @@ export default function SettingsPage() {
       setSaveError(err instanceof Error ? err.message : 'Could not save');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSavePrayerTimes() {
+    setSavingPrayers(true);
+    setPrayersSaved(false);
+    setPrayersError(null);
+    try {
+      await save({ prayer_times: prayerTimes });
+      setPrayersSaved(true);
+    } catch (err) {
+      setPrayersError(err instanceof Error ? err.message : 'Could not save');
+    } finally {
+      setSavingPrayers(false);
     }
   }
 
@@ -121,6 +149,41 @@ export default function SettingsPage() {
               Save
             </Button>
             {saved && <span className="text-sm text-muted-foreground">Saved.</span>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Prayer times</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Set your own times — nothing is calculated or fetched. Shown on the Prayer page and
+            fed into the same in-app alerts as your schedule.
+          </p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+            {PRAYER_ORDER.map((p) => (
+              <div key={p.name} className="space-y-2">
+                <Label htmlFor={`prayer-${p.name}`}>{p.label}</Label>
+                <Input
+                  id={`prayer-${p.name}`}
+                  type="time"
+                  value={prayerTimes[p.name] ? fmtHM(prayerTimes[p.name]!) : ''}
+                  onChange={(e) =>
+                    setPrayerTimes((prev) => ({ ...prev, [p.name]: e.target.value || undefined }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          {prayersError && <p className="text-sm text-destructive">{prayersError}</p>}
+          <div className="flex items-center gap-3">
+            <Button onClick={handleSavePrayerTimes} disabled={savingPrayers}>
+              {savingPrayers && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+            {prayersSaved && <span className="text-sm text-muted-foreground">Saved.</span>}
           </div>
         </CardContent>
       </Card>
