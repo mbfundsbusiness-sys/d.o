@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { callGemini, getGeminiApiKey } from '@/lib/gemini';
+import { getActiveLessonGroupId } from '@/lib/language/hierarchy';
 import type { ModuleContent, ModuleFocusArea } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -168,6 +169,8 @@ Return ONLY a JSON object for the next module.`,
       return NextResponse.json({ error: 'Failed to parse module data' }, { status: 502 });
     }
 
+    const lessonGroupId = await getActiveLessonGroupId(supabaseServer, userId, language);
+
     const { data: inserted, error: insertError } = await supabaseServer
       .from('language_modules')
       .insert({
@@ -178,6 +181,7 @@ Return ONLY a JSON object for the next module.`,
         focus_area: moduleData.focus_area,
         content_json: moduleData.content,
         completed: false,
+        lesson_group_id: lessonGroupId,
       })
       .select()
       .single();

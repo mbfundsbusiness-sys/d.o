@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, type LanguageSession, type LanguageAssessment, type LanguageModule } from '@/lib/supabase/client';
+import { supabase, type LanguageSession, type LanguageAssessment, type LanguageModule, type LangUnit, type LangLessonGroup } from '@/lib/supabase/client';
 import { LanguageStats } from '@/components/language-stats';
 import { LanguageHistory } from '@/components/language-history';
 import { LanguageForm } from '@/components/language-session-form';
 import { AssessmentDialog } from '@/components/language-assessment-dialog';
-import { ModuleList } from '@/components/language-module-list';
+import { LanguageLearningPath } from '@/components/language-learning-path';
 import { ModuleDetail } from '@/components/language-module-detail';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,8 @@ export default function LanguagePage() {
   const [sessions, setSessions] = useState<LanguageSession[]>([]);
   const [assessments, setAssessments] = useState<LanguageAssessment[]>([]);
   const [modules, setModules] = useState<LanguageModule[]>([]);
+  const [units, setUnits] = useState<LangUnit[]>([]);
+  const [lessonGroups, setLessonGroups] = useState<LangLessonGroup[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [selectedModule, setSelectedModule] = useState<LanguageModule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,17 +59,16 @@ export default function LanguagePage() {
   }, []);
 
   const fetchModules = useCallback(async (language: string) => {
-    const { data, error } = await supabase
-      .from('language_modules')
-      .select('*')
-      .eq('language', language)
-      .order('module_number', { ascending: true });
+    const [modulesRes, unitsRes, groupsRes] = await Promise.all([
+      supabase.from('language_modules').select('*').eq('language', language).order('module_number', { ascending: true }),
+      supabase.from('lang_units').select('*').eq('language', language).order('unit_number', { ascending: true }),
+      supabase.from('lang_lesson_groups').select('*').eq('language', language).order('group_number', { ascending: true }),
+    ]);
 
-    if (error) {
-      setError(error.message);
-    } else {
-      setModules(data ?? []);
-    }
+    if (modulesRes.error) setError(modulesRes.error.message);
+    setModules(modulesRes.data ?? []);
+    setUnits(unitsRes.data ?? []);
+    setLessonGroups(groupsRes.data ?? []);
   }, []);
 
   useEffect(() => {
@@ -80,6 +81,8 @@ export default function LanguagePage() {
       setSelectedModule(null);
     } else {
       setModules([]);
+      setUnits([]);
+      setLessonGroups([]);
     }
   }, [selectedLanguage, fetchModules]);
 
@@ -272,10 +275,11 @@ export default function LanguagePage() {
                 )}
               </CardHeader>
               <CardContent>
-                <ModuleList
+                <LanguageLearningPath
+                  units={units}
+                  groups={lessonGroups}
                   modules={modules}
                   onSelect={setSelectedModule}
-                  selectedId={undefined}
                   generating={generating}
                   onGenerate={() => generateModulesFor(selectedLanguage)}
                 />

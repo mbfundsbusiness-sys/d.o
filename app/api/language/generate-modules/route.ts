@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { callGemini, getGeminiApiKey } from '@/lib/gemini';
+import { getActiveLessonGroupId } from '@/lib/language/hierarchy';
 import type { LanguageAssessment, LanguageModule, ModuleContent, ModuleFocusArea } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -122,7 +123,10 @@ Return ONLY a JSON array of ${moduleCount} module objects.`,
       return NextResponse.json({ error: 'Failed to parse module data' }, { status: 502 });
     }
 
-    // Insert modules
+    // Insert modules, attached to the learning-path module (lesson group) that
+    // currently has room — creating Unit 1 / Module 1 on the first call.
+    const lessonGroupId = await getActiveLessonGroupId(supabaseServer, userId, language);
+
     const inserts = modules.map((m, i) => ({
       user_id: userId,
       language,
@@ -131,6 +135,7 @@ Return ONLY a JSON array of ${moduleCount} module objects.`,
       focus_area: m.focus_area,
       content_json: m.content,
       completed: false,
+      lesson_group_id: lessonGroupId,
     }));
 
     const { data: inserted, error: insertError } = await supabaseServer

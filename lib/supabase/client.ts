@@ -232,6 +232,32 @@ export type LanguageModule = {
   completed: boolean;
   created_at: string;
   completed_at: string | null;
+  lesson_group_id: string | null;
+};
+
+// --- Language learning path (Phase 1 hierarchy) ---
+// Course = language_assessments; Unit = LangUnit; Module = LangLessonGroup
+// (a container of lessons within a unit); Lesson = LanguageModule (above).
+
+export type LangUnit = {
+  id: string;
+  user_id: string;
+  language: string;
+  unit_number: number;
+  title: string;
+  description: string | null;
+  created_at: string;
+};
+
+export type LangLessonGroup = {
+  id: string;
+  user_id: string;
+  language: string;
+  unit_id: string;
+  group_number: number;
+  title: string;
+  description: string | null;
+  created_at: string;
 };
 
 export type LanguageTutorMessage = {
