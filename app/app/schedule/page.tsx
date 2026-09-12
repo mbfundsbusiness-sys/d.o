@@ -4,17 +4,41 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase, type ScheduleBlock } from '@/lib/supabase/client';
 import { ScheduleToday } from '@/components/schedule-today';
 import { ScheduleWeekEditor } from '@/components/schedule-week-editor';
+import { ScheduleWeekGrid } from '@/components/schedule-week-grid';
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { buildScheduleIcs, downloadIcs } from '@/lib/schedule/ics';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CalendarPlus } from 'lucide-react';
+import { Loader2, CalendarPlus, List, LayoutGrid } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const VIEW_STORAGE_KEY = 'schedule-view';
+type ScheduleView = 'list' | 'grid';
 
 export default function SchedulePage() {
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<ScheduleView>('list');
   const { settings, loading: settingsLoading } = useUserSettings();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+      if (stored === 'list' || stored === 'grid') setView(stored);
+    } catch {
+      // ignore — default to list
+    }
+  }, []);
+
+  function handleSetView(v: ScheduleView) {
+    setView(v);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, v);
+    } catch {
+      // ignore
+    }
+  }
 
   const fetchBlocks = useCallback(async () => {
     const { data, error: e } = await supabase
@@ -54,10 +78,34 @@ export default function SchedulePage() {
             at the start of each block while the app is open.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportIcs} disabled={blocks.length === 0}>
-          <CalendarPlus className="mr-2 h-4 w-4" />
-          Add to Apple Calendar
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-lg border border-border p-0.5">
+            <button
+              onClick={() => handleSetView('list')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                view === 'list' ? 'bg-white/[0.08] text-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <List className="h-3.5 w-3.5" />
+              List
+            </button>
+            <button
+              onClick={() => handleSetView('grid')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                view === 'grid' ? 'bg-white/[0.08] text-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Graph
+            </button>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExportIcs} disabled={blocks.length === 0}>
+            <CalendarPlus className="mr-2 h-4 w-4" />
+            Add to Apple Calendar
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -67,7 +115,12 @@ export default function SchedulePage() {
       )}
 
       <ScheduleToday blocks={blocks} settings={settings} />
-      <ScheduleWeekEditor blocks={blocks} settings={settings} onChanged={fetchBlocks} />
+
+      {view === 'grid' ? (
+        <ScheduleWeekGrid blocks={blocks} settings={settings} />
+      ) : (
+        <ScheduleWeekEditor blocks={blocks} settings={settings} onChanged={fetchBlocks} />
+      )}
     </div>
   );
 }

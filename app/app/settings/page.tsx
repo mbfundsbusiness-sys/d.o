@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { fmtHM } from '@/lib/utils/dates';
 import type { PrayerName, PrayerTimes } from '@/lib/supabase/client';
+import { BACKDROP_PRESETS, applyBackdrop, getStoredBackdrop, isBackdropId, type BackdropId } from '@/lib/backdrop';
+import { cn } from '@/lib/utils';
 
 type PermState = 'unsupported' | NotificationPermission;
 
@@ -32,6 +34,7 @@ export default function SettingsPage() {
   const [savingPrayers, setSavingPrayers] = useState(false);
   const [prayersSaved, setPrayersSaved] = useState(false);
   const [prayersError, setPrayersError] = useState<string | null>(null);
+  const [backdrop, setBackdrop] = useState<BackdropId>('aurora');
 
   useEffect(() => {
     if (typeof Notification === 'undefined') setPerm('unsupported');
@@ -43,8 +46,21 @@ export default function SettingsPage() {
       setJummahTime(settings.jummah_time ? fmtHM(settings.jummah_time) : '');
       setJummahDuration(String(settings.jummah_duration_min ?? 60));
       setPrayerTimes(settings.prayer_times ?? {});
+      setBackdrop(isBackdropId(settings.backdrop) ? settings.backdrop : getStoredBackdrop());
+    } else {
+      setBackdrop(getStoredBackdrop());
     }
   }, [settings]);
+
+  async function handlePickBackdrop(id: BackdropId) {
+    setBackdrop(id);
+    applyBackdrop(id); // instant, no need to wait on the network
+    try {
+      await save({ backdrop: id });
+    } catch {
+      // applied locally either way — background sync failure isn't worth surfacing here
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -184,6 +200,41 @@ export default function SettingsPage() {
               Save
             </Button>
             {prayersSaved && <span className="text-sm text-muted-foreground">Saved.</span>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Backdrop</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            The colour wash behind the app. Applies instantly and syncs to your other devices.
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {BACKDROP_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => handlePickBackdrop(preset.id)}
+                className={cn(
+                  'flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors',
+                  backdrop === preset.id ? 'border-foreground' : 'border-border hover:border-foreground/40'
+                )}
+              >
+                <div className="h-10 w-full overflow-hidden rounded-md bg-secondary">
+                  {preset.swatch.length > 0 && (
+                    <div
+                      className="h-full w-full"
+                      style={{
+                        background: `linear-gradient(90deg, ${preset.swatch.join(', ')})`,
+                      }}
+                    />
+                  )}
+                </div>
+                <span className="text-xs font-medium">{preset.label}</span>
+              </button>
+            ))}
           </div>
         </CardContent>
       </Card>

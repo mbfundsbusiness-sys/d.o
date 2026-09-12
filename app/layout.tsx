@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth/provider';
+import { BACKDROP_INIT_SCRIPT } from '@/lib/backdrop';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -17,6 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: BACKDROP_INIT_SCRIPT }} />
+      </head>
       <body className={`${inter.className} bg-background text-foreground antialiased`}>
         <AuthProvider>{children}</AuthProvider>
       </body>

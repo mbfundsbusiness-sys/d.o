@@ -484,6 +484,7 @@ export type UserSettings = {
   jummah_time: string | null;
   jummah_duration_min: number;
   prayer_times: PrayerTimes;
+  backdrop: string;
   created_at: string;
   updated_at: string;
 };

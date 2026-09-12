@@ -5,7 +5,7 @@ import { supabase, type UserSettings } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/provider';
 
 type SaveInput = Partial<
-  Pick<UserSettings, 'jummah_time' | 'jummah_duration_min' | 'timezone' | 'prayer_times'>
+  Pick<UserSettings, 'jummah_time' | 'jummah_duration_min' | 'timezone' | 'prayer_times' | 'backdrop'>
 >;
 
 type UseUserSettings = {

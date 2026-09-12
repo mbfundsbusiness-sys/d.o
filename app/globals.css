@@ -70,22 +70,81 @@
   * {
     @apply border-border;
   }
+
+  /* Backdrop presets — the decorative colour wash behind the glass panels.
+     Selected via data-backdrop on <html> (see lib/backdrop.ts); "aurora" is
+     the original look and the default. Each colourful preset just swaps 4
+     hue values — position/size/saturation/lightness/alpha stay constant so
+     every preset carries the same visual weight. */
+  :root {
+    --bd-h1: 205;
+    --bd-h2: 280;
+    --bd-h3: 190;
+    --bd-h4: 325;
+  }
+  :root[data-backdrop='sunset'] {
+    --bd-h1: 15;
+    --bd-h2: 340;
+    --bd-h3: 30;
+    --bd-h4: 275;
+  }
+  :root[data-backdrop='ocean'] {
+    --bd-h1: 200;
+    --bd-h2: 185;
+    --bd-h3: 220;
+    --bd-h4: 165;
+  }
+  :root[data-backdrop='forest'] {
+    --bd-h1: 130;
+    --bd-h2: 90;
+    --bd-h3: 155;
+    --bd-h4: 45;
+  }
+  :root[data-backdrop='candy'] {
+    --bd-h1: 330;
+    --bd-h2: 260;
+    --bd-h3: 190;
+    --bd-h4: 30;
+  }
+
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(ellipse 50rem 42rem at 8% 8%, hsl(205 90% 68% / 0.55), transparent 62%),
-      radial-gradient(ellipse 42rem 40rem at 95% 0%, hsl(280 75% 70% / 0.4), transparent 58%),
-      radial-gradient(ellipse 46rem 44rem at 60% 90%, hsl(190 85% 62% / 0.38), transparent 60%),
-      radial-gradient(ellipse 40rem 36rem at 15% 95%, hsl(325 75% 65% / 0.28), transparent 55%);
+      radial-gradient(ellipse 50rem 42rem at 8% 8%, hsl(var(--bd-h1) 90% 68% / 0.55), transparent 62%),
+      radial-gradient(ellipse 42rem 40rem at 95% 0%, hsl(var(--bd-h2) 75% 70% / 0.4), transparent 58%),
+      radial-gradient(ellipse 46rem 44rem at 60% 90%, hsl(var(--bd-h3) 85% 62% / 0.38), transparent 60%),
+      radial-gradient(ellipse 40rem 36rem at 15% 95%, hsl(var(--bd-h4) 75% 65% / 0.28), transparent 55%);
     background-attachment: fixed;
     background-repeat: no-repeat;
   }
   .light body {
     background-image:
-      radial-gradient(ellipse 50rem 42rem at 8% 8%, hsl(205 90% 62% / 0.3), transparent 62%),
-      radial-gradient(ellipse 42rem 40rem at 95% 0%, hsl(280 75% 65% / 0.22), transparent 58%),
-      radial-gradient(ellipse 46rem 44rem at 60% 90%, hsl(190 85% 55% / 0.2), transparent 60%),
-      radial-gradient(ellipse 40rem 36rem at 15% 95%, hsl(325 75% 60% / 0.16), transparent 55%);
+      radial-gradient(ellipse 50rem 42rem at 8% 8%, hsl(var(--bd-h1) 90% 62% / 0.3), transparent 62%),
+      radial-gradient(ellipse 42rem 40rem at 95% 0%, hsl(var(--bd-h2) 75% 65% / 0.22), transparent 58%),
+      radial-gradient(ellipse 46rem 44rem at 60% 90%, hsl(var(--bd-h3) 85% 55% / 0.2), transparent 60%),
+      radial-gradient(ellipse 40rem 36rem at 15% 95%, hsl(var(--bd-h4) 75% 60% / 0.16), transparent 55%);
+  }
+
+  /* Mono: same shape, zero saturation — a soft grayscale vignette instead
+     of colour, for the strict-black-and-white purist. */
+  :root[data-backdrop='mono'] body {
+    background-image:
+      radial-gradient(ellipse 50rem 42rem at 8% 8%, hsl(0 0% 68% / 0.35), transparent 62%),
+      radial-gradient(ellipse 42rem 40rem at 95% 0%, hsl(0 0% 70% / 0.25), transparent 58%),
+      radial-gradient(ellipse 46rem 44rem at 60% 90%, hsl(0 0% 62% / 0.22), transparent 60%),
+      radial-gradient(ellipse 40rem 36rem at 15% 95%, hsl(0 0% 65% / 0.16), transparent 55%);
+  }
+  :root[data-backdrop='mono'].light body {
+    background-image:
+      radial-gradient(ellipse 50rem 42rem at 8% 8%, hsl(0 0% 40% / 0.12), transparent 62%),
+      radial-gradient(ellipse 42rem 40rem at 95% 0%, hsl(0 0% 40% / 0.09), transparent 58%),
+      radial-gradient(ellipse 46rem 44rem at 60% 90%, hsl(0 0% 40% / 0.08), transparent 60%),
+      radial-gradient(ellipse 40rem 36rem at 15% 95%, hsl(0 0% 40% / 0.06), transparent 55%);
+  }
+
+  /* None: flat background, no wash at all. */
+  :root[data-backdrop='none'] body {
+    background-image: none;
   }
 }
 
