@@ -158,7 +158,7 @@ export default function BotCouncilPage() {
       ) : (
         <>
           <BotCouncilTasks tasks={tasks} onChanged={fetchAll} />
-          <BotCouncilHistory checks={checks} />
+          <BotCouncilHistory checks={checks} onChanged={fetchAll} />
         </>
       )}
     </div>

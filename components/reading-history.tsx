@@ -1,11 +1,17 @@
 'use client';
 
-import type { ReadingSession } from '@/lib/supabase/client';
+import { supabase, type ReadingSession } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DeleteButton } from '@/components/delete-button';
 import { formatDateUK } from '@/lib/utils/dates';
 
-export function ReadingHistory({ sessions }: { sessions: ReadingSession[] }) {
+export function ReadingHistory({ sessions, onChanged }: { sessions: ReadingSession[]; onChanged: () => void }) {
   const completed = sessions.filter((s) => s.duration_min !== null);
+
+  async function handleDelete(id: string) {
+    await supabase.from('reading_sessions').delete().eq('id', id);
+    onChanged();
+  }
 
   if (completed.length === 0) {
     return (
@@ -43,11 +49,10 @@ export function ReadingHistory({ sessions }: { sessions: ReadingSession[] }) {
                   {formatDateUK(s.started_at.slice(0, 10))} · {Math.round(s.duration_min ?? 0)} min
                   {s.pages ? ` · ${s.pages} pp` : ''}
                 </p>
+                {s.note && <p className="text-xs text-muted-foreground">{s.note}</p>}
               </div>
             </div>
-            {s.note && (
-              <p className="text-xs text-muted-foreground sm:text-right">{s.note}</p>
-            )}
+            <DeleteButton onDelete={() => handleDelete(s.id)} confirmText="Delete this reading session?" />
           </div>
         ))}
       </CardContent>

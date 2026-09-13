@@ -270,7 +270,7 @@ export default function TradingPage() {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <TradingHistory sessions={sessions} />
+        <TradingHistory sessions={sessions} onChanged={fetchSessions} />
       )}
     </div>
   );

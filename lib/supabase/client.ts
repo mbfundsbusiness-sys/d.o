@@ -485,8 +485,26 @@ export type UserSettings = {
   jummah_duration_min: number;
   prayer_times: PrayerTimes;
   backdrop: string;
+  hidden_modules: string[];
   created_at: string;
   updated_at: string;
+};
+
+// --- Wishlist ---
+
+export type WishlistPriority = 'low' | 'medium' | 'high';
+
+export type WishlistItem = {
+  id: string;
+  user_id: string;
+  title: string;
+  url: string | null;
+  price: number | null;
+  priority: WishlistPriority;
+  notes: string | null;
+  purchased: boolean;
+  purchased_at: string | null;
+  created_at: string;
 };
 
 // --- Course module types (generic — cybersecurity or any other course) ---

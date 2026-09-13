@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Play, Check, Plus, RotateCcw } from 'lucide-react';
+import { DeleteButton } from '@/components/delete-button';
 
 const STATUS_ORDER: ReadingMaterial['status'][] = ['reading', 'queued', 'completed'];
 const STATUS_LABEL: Record<ReadingMaterial['status'], string> = {
@@ -58,6 +59,11 @@ export function ReadingMaterialList({
     const { error: updErr } = await supabase.from('reading_materials').update(fields).eq('id', id);
     if (updErr) setError(updErr.message);
     setBusyId(null);
+    onChanged();
+  }
+
+  async function handleDelete(id: string) {
+    await supabase.from('reading_materials').delete().eq('id', id);
     onChanged();
   }
 
@@ -176,6 +182,10 @@ export function ReadingMaterialList({
                             Reopen
                           </Button>
                         )}
+                        <DeleteButton
+                          onDelete={() => handleDelete(m.id)}
+                          confirmText={`Remove "${m.title}" from your reading list?`}
+                        />
                       </div>
                     </div>
 

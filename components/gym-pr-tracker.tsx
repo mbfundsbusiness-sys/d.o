@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Plus, Trophy } from 'lucide-react';
+import { DeleteButton } from '@/components/delete-button';
 import { formatDateUK, todayISO } from '@/lib/utils/dates';
 
 type GymPRTrackerProps = {
@@ -40,6 +41,11 @@ export function GymPRTracker({ prs, onChanged }: GymPRTrackerProps) {
     }
     setExercise('');
     setValue('');
+    onChanged();
+  }
+
+  async function handleDelete(id: string) {
+    await supabase.from('gym_prs').delete().eq('id', id);
     onChanged();
   }
 
@@ -96,7 +102,10 @@ export function GymPRTracker({ prs, onChanged }: GymPRTrackerProps) {
                   <p className="text-sm font-medium">{pr.exercise}</p>
                   <p className="text-xs text-muted-foreground">{formatDateUK(pr.achieved_at)}</p>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">{pr.value}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold tabular-nums">{pr.value}</span>
+                  <DeleteButton onDelete={() => handleDelete(pr.id)} confirmText={`Delete PR "${pr.exercise}"?`} />
+                </div>
               </div>
             ))}
           </div>

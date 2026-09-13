@@ -98,7 +98,7 @@ export default function GhostwriterPage() {
       ) : (
         <>
           <GhostwriterStylePanel styleLyrics={styleLyrics} references={references} onChanged={fetchAll} />
-          <GhostwriterSongList songs={songs} onSelect={setSelectedSong} onCreated={handleSongCreated} />
+          <GhostwriterSongList songs={songs} onSelect={setSelectedSong} onCreated={handleSongCreated} onDeleted={handleSongDeleted} />
         </>
       )}
     </div>

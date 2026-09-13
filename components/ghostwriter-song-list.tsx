@@ -7,15 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, Music2, Check } from 'lucide-react';
+import { DeleteButton } from '@/components/delete-button';
 import { formatDateUK } from '@/lib/utils/dates';
 
 type SongListProps = {
   songs: GhostwriterSong[];
   onSelect: (song: GhostwriterSong) => void;
   onCreated: (song: GhostwriterSong) => void;
+  onDeleted: () => void;
 };
 
-export function GhostwriterSongList({ songs, onSelect, onCreated }: SongListProps) {
+export function GhostwriterSongList({ songs, onSelect, onCreated, onDeleted }: SongListProps) {
+  async function handleDelete(id: string) {
+    await supabase.from('ghostwriter_songs').delete().eq('id', id);
+    onDeleted();
+  }
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [brief, setBrief] = useState('');
@@ -86,27 +92,33 @@ export function GhostwriterSongList({ songs, onSelect, onCreated }: SongListProp
         ) : (
           <div className="space-y-1.5">
             {songs.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => onSelect(s)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-accent/5"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium">{s.title}</p>
-                    {s.status === 'finished' && (
-                      <Badge className="border-success/20 bg-success/10 text-[10px] text-success">
-                        <Check className="mr-1 h-3 w-3" />
-                        Finished
-                      </Badge>
-                    )}
+              <div key={s.id} className="relative">
+                <button
+                  onClick={() => onSelect(s)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 pr-9 text-left transition-colors hover:bg-accent/5"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium">{s.title}</p>
+                      {s.status === 'finished' && (
+                        <Badge className="border-success/20 bg-success/10 text-[10px] text-success">
+                          <Check className="mr-1 h-3 w-3" />
+                          Finished
+                        </Badge>
+                      )}
+                    </div>
+                    {s.brief && <p className="truncate text-xs text-muted-foreground">{s.brief}</p>}
                   </div>
-                  {s.brief && <p className="truncate text-xs text-muted-foreground">{s.brief}</p>}
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDateUK(s.updated_at.slice(0, 10))}
-                </span>
-              </button>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {formatDateUK(s.updated_at.slice(0, 10))}
+                  </span>
+                </button>
+                <DeleteButton
+                  onDelete={() => handleDelete(s.id)}
+                  confirmText={`Delete "${s.title}"? This deletes its lyrics and co-write chat too.`}
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                />
+              </div>
             ))}
           </div>
         )}

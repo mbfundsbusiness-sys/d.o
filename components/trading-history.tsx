@@ -1,12 +1,18 @@
 'use client';
 
-import type { TradingSession } from '@/lib/supabase/client';
+import { supabase, type TradingSession } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DeleteButton } from '@/components/delete-button';
 import { formatDateUK } from '@/lib/utils/dates';
 
-export function TradingHistory({ sessions }: { sessions: TradingSession[] }) {
+export function TradingHistory({ sessions, onChanged }: { sessions: TradingSession[]; onChanged: () => void }) {
   const completed = sessions.filter((s) => s.ended_at !== null);
+
+  async function handleDelete(id: string) {
+    await supabase.from('trading_sessions').delete().eq('id', id);
+    onChanged();
+  }
 
   if (completed.length === 0) {
     return (
@@ -49,16 +55,19 @@ export function TradingHistory({ sessions }: { sessions: TradingSession[] }) {
                 {s.note && <p className="mt-1 text-xs text-muted-foreground">{s.note}</p>}
               </div>
             </div>
-            {s.screenshot_url && (
-              <a href={s.screenshot_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={s.screenshot_url}
-                  alt="Chart at close"
-                  className="h-16 w-24 rounded-lg border border-border object-cover"
-                />
-              </a>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {s.screenshot_url && (
+                <a href={s.screenshot_url} target="_blank" rel="noopener noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={s.screenshot_url}
+                    alt="Chart at close"
+                    className="h-16 w-24 rounded-lg border border-border object-cover"
+                  />
+                </a>
+              )}
+              <DeleteButton onDelete={() => handleDelete(s.id)} confirmText="Delete this trading session?" />
+            </div>
           </div>
         ))}
       </CardContent>

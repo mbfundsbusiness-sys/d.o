@@ -1,12 +1,18 @@
 'use client';
 
-import type { BotCouncilCheck } from '@/lib/supabase/client';
+import { supabase, type BotCouncilCheck } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DeleteButton } from '@/components/delete-button';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { formatDateUK } from '@/lib/utils/dates';
 
-export function BotCouncilHistory({ checks }: { checks: BotCouncilCheck[] }) {
+export function BotCouncilHistory({ checks, onChanged }: { checks: BotCouncilCheck[]; onChanged: () => void }) {
+  async function handleDelete(id: string) {
+    await supabase.from('botcouncil_checks').delete().eq('id', id);
+    onChanged();
+  }
+
   if (checks.length === 0) {
     return (
       <Card>
@@ -59,9 +65,12 @@ export function BotCouncilHistory({ checks }: { checks: BotCouncilCheck[] }) {
                 </p>
               </div>
             </div>
-            {c.note && (
-              <p className="text-xs text-muted-foreground sm:text-right">{c.note}</p>
-            )}
+            <div className="flex items-center gap-2">
+              {c.note && (
+                <p className="text-xs text-muted-foreground sm:text-right">{c.note}</p>
+              )}
+              <DeleteButton onDelete={() => handleDelete(c.id)} confirmText="Delete this check?" />
+            </div>
           </div>
         ))}
       </CardContent>

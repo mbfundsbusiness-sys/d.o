@@ -167,7 +167,7 @@ export default function GymPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <GymWeekList plans={plans} onSelect={setSelectedPlan} generating={generating} />
+            <GymWeekList plans={plans} onSelect={setSelectedPlan} onChanged={fetchAll} generating={generating} />
           </CardContent>
         </Card>
       )}

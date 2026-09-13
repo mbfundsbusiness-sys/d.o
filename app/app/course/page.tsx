@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Plus, Sparkles, ShieldCheck } from 'lucide-react';
+import { DeleteButton } from '@/components/delete-button';
 
 const SUGGESTED_COURSES = ['Cybersecurity'];
 
@@ -128,6 +129,13 @@ export default function CoursePage() {
     setSelectedModule(null);
   }
 
+  async function handleRemoveCourse(courseName: string) {
+    await supabase.from('course_modules').delete().eq('course_name', courseName);
+    await supabase.from('course_profiles').delete().eq('course_name', courseName);
+    if (selectedCourse === courseName) setSelectedCourse(null);
+    await fetchProfiles();
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -154,14 +162,21 @@ export default function CoursePage() {
 
       <div className="flex flex-wrap items-center gap-2">
         {profiles.map((p) => (
-          <Button
-            key={p.id}
-            variant={selectedCourse === p.course_name ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSelectedCourse(p.course_name)}
-          >
-            {p.course_name}
-          </Button>
+          <div key={p.id} className="relative">
+            <Button
+              variant={selectedCourse === p.course_name ? 'default' : 'outline'}
+              size="sm"
+              className="pr-7"
+              onClick={() => setSelectedCourse(p.course_name)}
+            >
+              {p.course_name}
+            </Button>
+            <DeleteButton
+              onDelete={() => handleRemoveCourse(p.course_name)}
+              confirmText={`Remove ${p.course_name}? This deletes all its modules and progress.`}
+              className="absolute right-0.5 top-1/2 -translate-y-1/2"
+            />
+          </div>
         ))}
         <Button variant="ghost" size="sm" onClick={() => setShowAddCourse((v) => !v)}>
           <Plus className="mr-1 h-4 w-4" />

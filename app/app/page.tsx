@@ -57,7 +57,7 @@ export default function TodayPage() {
         <>
           <AnchorStats logs={logs} />
           <AnchorForm onLogged={fetchLogs} />
-          <AnchorHistory logs={logs} />
+          <AnchorHistory logs={logs} onChanged={fetchLogs} />
         </>
       )}
     </div>

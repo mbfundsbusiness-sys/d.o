@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp, TrendingDown, PiggyBank } from 'lucide-react';
+import { DeleteButton } from '@/components/delete-button';
 import { todayISO, formatDateUK } from '@/lib/utils/dates';
 
 export default function FinancePage() {
@@ -122,6 +123,11 @@ export default function FinancePage() {
   }, [entries]);
 
   const recentEntries = entries.slice(0, 20);
+
+  async function handleDeleteEntry(id: string) {
+    await supabase.from('finance_entries').delete().eq('id', id);
+    fetchEntries();
+  }
 
   if (loading) {
     return (
@@ -259,9 +265,12 @@ export default function FinancePage() {
                       </p>
                     </div>
                   </div>
-                  {e.ai_categorised && (
-                    <span className="text-[10px] text-muted-foreground/60">AI</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {e.ai_categorised && (
+                      <span className="text-[10px] text-muted-foreground/60">AI</span>
+                    )}
+                    <DeleteButton onDelete={() => handleDeleteEntry(e.id)} confirmText="Delete this entry?" />
+                  </div>
                 </div>
               ))
             )}

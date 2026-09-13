@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { fmtHM } from '@/lib/utils/dates';
 import type { PrayerName, PrayerTimes } from '@/lib/supabase/client';
 import { BACKDROP_PRESETS, applyBackdrop, getStoredBackdrop, isBackdropId, type BackdropId } from '@/lib/backdrop';
+import { NAV_ITEMS, ALWAYS_VISIBLE_HREFS } from '@/lib/nav-items';
 import { cn } from '@/lib/utils';
 
 type PermState = 'unsupported' | NotificationPermission;
@@ -35,6 +36,8 @@ export default function SettingsPage() {
   const [prayersSaved, setPrayersSaved] = useState(false);
   const [prayersError, setPrayersError] = useState<string | null>(null);
   const [backdrop, setBackdrop] = useState<BackdropId>('aurora');
+  const [hiddenModules, setHiddenModules] = useState<string[]>([]);
+  const [modulesError, setModulesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof Notification === 'undefined') setPerm('unsupported');
@@ -47,10 +50,23 @@ export default function SettingsPage() {
       setJummahDuration(String(settings.jummah_duration_min ?? 60));
       setPrayerTimes(settings.prayer_times ?? {});
       setBackdrop(isBackdropId(settings.backdrop) ? settings.backdrop : getStoredBackdrop());
+      setHiddenModules(settings.hidden_modules ?? []);
     } else {
       setBackdrop(getStoredBackdrop());
     }
   }, [settings]);
+
+  async function handleToggleModule(href: string, hide: boolean) {
+    const next = hide ? [...hiddenModules, href] : hiddenModules.filter((h) => h !== href);
+    setHiddenModules(next);
+    setModulesError(null);
+    try {
+      await save({ hidden_modules: next });
+    } catch (err) {
+      setModulesError(err instanceof Error ? err.message : 'Could not save');
+      setHiddenModules(hiddenModules); // revert on failure
+    }
+  }
 
   async function handlePickBackdrop(id: BackdropId) {
     setBackdrop(id);
@@ -235,6 +251,43 @@ export default function SettingsPage() {
                 <span className="text-xs font-medium">{preset.label}</span>
               </button>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Modules</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Hide modules you don't use from the sidebar. Nothing is deleted — turn one back on any
+            time to see its data again.
+          </p>
+          {modulesError && <p className="text-sm text-destructive">{modulesError}</p>}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {NAV_ITEMS.filter((item) => !ALWAYS_VISIBLE_HREFS.includes(item.href)).map((item) => {
+              const Icon = item.icon;
+              const isHidden = hiddenModules.includes(item.href);
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => handleToggleModule(item.href, !isHidden)}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition-colors',
+                    isHidden
+                      ? 'border-border text-muted-foreground opacity-60'
+                      : 'border-foreground/30 bg-white/[0.04]'
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className="shrink-0 text-[10px] uppercase text-muted-foreground">
+                    {isHidden ? 'Hidden' : 'Shown'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

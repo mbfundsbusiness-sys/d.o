@@ -1,17 +1,24 @@
 'use client';
 
-import type { GymPlan } from '@/lib/supabase/client';
+import { supabase, type GymPlan } from '@/lib/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DeleteButton } from '@/components/delete-button';
 import { Check, Lock, Dumbbell, Moon } from 'lucide-react';
 
 type GymWeekListProps = {
   plans: GymPlan[];
   onSelect: (plan: GymPlan) => void;
+  onChanged: () => void;
   generating?: boolean;
 };
 
-export function GymWeekList({ plans, onSelect, generating }: GymWeekListProps) {
+export function GymWeekList({ plans, onSelect, onChanged, generating }: GymWeekListProps) {
+  async function handleDelete(id: string) {
+    await supabase.from('gym_plans').delete().eq('id', id);
+    onChanged();
+  }
+
   if (generating) {
     return (
       <Card>
@@ -44,47 +51,53 @@ export function GymWeekList({ plans, onSelect, generating }: GymWeekListProps) {
         const isLocked = i > 0 && !plans[i - 1].completed;
 
         return (
-          <button
-            key={p.id}
-            onClick={() => !isLocked && onSelect(p)}
-            disabled={isLocked}
-            className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
-              isLocked ? 'border-border opacity-50 cursor-not-allowed' : 'border-border hover:bg-accent/5'
-            }`}
-          >
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-              p.completed
-                ? 'bg-success/10 text-success'
-                : isLocked
-                ? 'bg-muted text-muted-foreground'
-                : 'bg-secondary text-secondary-foreground'
-            }`}>
-              {p.completed ? (
-                <Check className="h-5 w-5" />
-              ) : isLocked ? (
-                <Lock className="h-4 w-4" />
-              ) : p.is_deload ? (
-                <Moon className="h-5 w-5" />
-              ) : (
-                <Dumbbell className="h-5 w-5" />
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Week {p.week_number}
-                </span>
-                {p.is_deload && (
-                  <Badge variant="secondary" className="text-[10px]">Deload</Badge>
-                )}
-                {p.is_manual && (
-                  <Badge variant="secondary" className="text-[10px]">Your own</Badge>
+          <div key={p.id} className="relative">
+            <button
+              onClick={() => !isLocked && onSelect(p)}
+              disabled={isLocked}
+              className={`flex w-full items-center gap-3 rounded-lg border p-3 pr-10 text-left transition-colors ${
+                isLocked ? 'border-border opacity-50 cursor-not-allowed' : 'border-border hover:bg-accent/5'
+              }`}
+            >
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                p.completed
+                  ? 'bg-success/10 text-success'
+                  : isLocked
+                  ? 'bg-muted text-muted-foreground'
+                  : 'bg-secondary text-secondary-foreground'
+              }`}>
+                {p.completed ? (
+                  <Check className="h-5 w-5" />
+                ) : isLocked ? (
+                  <Lock className="h-4 w-4" />
+                ) : p.is_deload ? (
+                  <Moon className="h-5 w-5" />
+                ) : (
+                  <Dumbbell className="h-5 w-5" />
                 )}
               </div>
-              <p className="text-sm font-medium truncate">{p.title}</p>
-            </div>
-          </button>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Week {p.week_number}
+                  </span>
+                  {p.is_deload && (
+                    <Badge variant="secondary" className="text-[10px]">Deload</Badge>
+                  )}
+                  {p.is_manual && (
+                    <Badge variant="secondary" className="text-[10px]">Your own</Badge>
+                  )}
+                </div>
+                <p className="text-sm font-medium truncate">{p.title}</p>
+              </div>
+            </button>
+            <DeleteButton
+              onDelete={() => handleDelete(p.id)}
+              confirmText={`Delete week ${p.week_number}?`}
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+            />
+          </div>
         );
       })}
     </div>

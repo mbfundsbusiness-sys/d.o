@@ -11,6 +11,7 @@ import { useTimer, formatDuration } from '@/lib/timer/context';
 import { FOCUS_LABELS } from '@/components/language-module-list';
 import { SpeakButton } from '@/components/speak-button';
 import { LanguageLessonPlayer } from '@/components/language-lesson-player';
+import { DeleteButton } from '@/components/delete-button';
 import { masteryLabel } from '@/lib/language/mastery';
 import { formatDateUK } from '@/lib/utils/dates';
 
@@ -138,6 +139,18 @@ export function ModuleDetail({ module, onBack, onModuleCompleted, onReviewed }: 
     }
   }
 
+  async function handleDeleteLesson() {
+    if (isThisModuleRunning) {
+      try {
+        await completeSession();
+      } catch {
+        // proceed with deletion regardless
+      }
+    }
+    await supabase.from('language_modules').delete().eq('id', module.id);
+    onModuleCompleted();
+  }
+
   async function handleReviewResult(accuracy: number) {
     setError(null);
     try {
@@ -243,6 +256,11 @@ export function ModuleDetail({ module, onBack, onModuleCompleted, onReviewed }: 
           </div>
           <h2 className="text-lg font-semibold">{module.title}</h2>
         </div>
+        <DeleteButton
+          onDelete={handleDeleteLesson}
+          confirmText={`Delete lesson "${module.title}"? This deletes its questions, mastery, and tutor chat too.`}
+          size="md"
+        />
       </div>
 
       {/* Timer bar */}

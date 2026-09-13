@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Send, Loader2, Check, ArrowLeft, Play, MessageSquare, Sparkles, User } from 'lucide-react';
 import { useTimer, formatDuration } from '@/lib/timer/context';
+import { DeleteButton } from '@/components/delete-button';
 
 type CourseModuleDetailProps = {
   module: CourseModule;
@@ -99,6 +100,19 @@ export function CourseModuleDetail({ module, onBack, onModuleCompleted }: Course
     }
   }
 
+  async function handleDeleteModule() {
+    const isThisModuleRunning = running?.kind === 'course' && running?.course_name === module.course_name;
+    if (isThisModuleRunning) {
+      try {
+        await completeSession();
+      } catch {
+        // proceed with deletion regardless
+      }
+    }
+    await supabase.from('course_modules').delete().eq('id', module.id);
+    onModuleCompleted();
+  }
+
   async function handleSendTutor() {
     const trimmed = input.trim();
     if (!trimmed || sending) return;
@@ -173,6 +187,11 @@ export function CourseModuleDetail({ module, onBack, onModuleCompleted }: Course
           </div>
           <h2 className="text-lg font-semibold">{module.title}</h2>
         </div>
+        <DeleteButton
+          onDelete={handleDeleteModule}
+          confirmText={`Delete lesson "${module.title}"? This deletes its tutor chat too.`}
+          size="md"
+        />
       </div>
 
       <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">

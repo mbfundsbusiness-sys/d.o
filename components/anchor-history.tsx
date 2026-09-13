@@ -1,11 +1,17 @@
 'use client';
 
-import type { AnchorLog } from '@/lib/supabase/client';
+import { supabase, type AnchorLog } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DeleteButton } from '@/components/delete-button';
 import { Check, X, Clock, Send } from 'lucide-react';
 import { formatDateUK } from '@/lib/utils/dates';
 
-export function AnchorHistory({ logs }: { logs: AnchorLog[] }) {
+export function AnchorHistory({ logs, onChanged }: { logs: AnchorLog[]; onChanged: () => void }) {
+  async function handleDelete(id: string) {
+    await supabase.from('anchor_logs').delete().eq('id', id);
+    onChanged();
+  }
+
   if (logs.length === 0) {
     return (
       <Card>
@@ -62,11 +68,14 @@ export function AnchorHistory({ logs }: { logs: AnchorLog[] }) {
               />
             </div>
 
-            {log.note && (
-              <p className="w-full text-xs text-muted-foreground sm:w-auto sm:text-right">
-                {log.note}
-              </p>
-            )}
+            <div className="flex items-center gap-2">
+              {log.note && (
+                <p className="w-full text-xs text-muted-foreground sm:w-auto sm:text-right">
+                  {log.note}
+                </p>
+              )}
+              <DeleteButton onDelete={() => handleDelete(log.id)} confirmText="Delete this log entry?" />
+            </div>
           </div>
         ))}
       </CardContent>

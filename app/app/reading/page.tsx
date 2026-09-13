@@ -88,7 +88,7 @@ export default function ReadingPage() {
 
       <ReadingHighlights highlights={highlights} materialTitles={materialTitles} onChanged={fetchAll} />
 
-      <ReadingHistory sessions={sessions} />
+      <ReadingHistory sessions={sessions} onChanged={fetchAll} />
     </div>
   );
 }

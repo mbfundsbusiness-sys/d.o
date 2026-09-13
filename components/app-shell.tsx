@@ -4,27 +4,12 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth/provider';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Compass, LayoutDashboard, Map, LogOut, Languages, Sparkles, Wallet, Moon, CandlestickChart, Bot, Dumbbell, ChevronLeft, ChevronRight, Feather, BookOpen, CalendarClock, Settings, ShieldCheck } from 'lucide-react';
+import { Compass, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ActivityTimerWidget } from '@/components/activity-timer-widget';
 import { ScheduleAlertBanner } from '@/components/schedule-alert-banner';
-
-const NAV_ITEMS = [
-  { href: '/app', label: 'Today', icon: LayoutDashboard },
-  { href: '/app/schedule', label: 'Schedule', icon: CalendarClock },
-  { href: '/app/roadmap', label: 'Roadmap', icon: Map },
-  { href: '/app/trading', label: 'Trading', icon: CandlestickChart },
-  { href: '/app/gym', label: 'Gym', icon: Dumbbell },
-  { href: '/app/language', label: 'Language', icon: Languages },
-  { href: '/app/reading', label: 'Reading', icon: BookOpen },
-  { href: '/app/course', label: 'Course', icon: ShieldCheck },
-  { href: '/app/ghostwriter', label: 'Ghostwriter', icon: Feather },
-  { href: '/app/finance', label: 'Finance', icon: Wallet },
-  { href: '/app/prayer', label: 'Prayer', icon: Moon },
-  { href: '/app/botcouncil', label: 'BotCouncil', icon: Bot },
-  { href: '/app/assistant', label: 'Assistant', icon: Sparkles },
-  { href: '/app/settings', label: 'Settings', icon: Settings },
-];
+import { useUserSettings } from '@/lib/settings/use-user-settings';
+import { NAV_ITEMS, ALWAYS_VISIBLE_HREFS } from '@/lib/nav-items';
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
 
@@ -36,9 +21,15 @@ export function AppShell({
   currentPath: string;
 }) {
   const { signOut } = useAuth();
+  const { settings } = useUserSettings();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+
+  const hidden = new Set(settings?.hidden_modules ?? []);
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => ALWAYS_VISIBLE_HREFS.includes(item.href) || !hidden.has(item.href)
+  );
 
   useEffect(() => {
     try {
@@ -86,7 +77,7 @@ export function AppShell({
         {!collapsed && <ActivityTimerWidget />}
 
         <nav className="flex-1 space-y-1 px-3 py-2">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive =
               item.href === '/app'
                 ? currentPath === '/app'
@@ -158,7 +149,7 @@ export function AppShell({
       {mobileOpen && (
         <div className="glass-panel absolute left-0 right-0 z-30 border-t-0 px-4 py-3 lg:hidden">
           <nav className="space-y-1">
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive =
                 item.href === '/app'
                   ? currentPath === '/app'

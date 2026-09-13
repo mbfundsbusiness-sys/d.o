@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Plus, Sparkles, BookOpen, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { DeleteButton } from '@/components/delete-button';
 import { formatDateUK } from '@/lib/utils/dates';
 
 const COMMON_LANGUAGES = ['Spanish', 'French', 'German', 'Arabic', 'Japanese', 'Mandarin', 'Italian', 'Portuguese'];
@@ -182,6 +183,15 @@ export default function LanguagePage() {
     await generateModulesFor(_assessment.language);
   }
 
+  async function handleRemoveLanguage(language: string) {
+    await supabase.from('language_modules').delete().eq('language', language);
+    await supabase.from('lang_units').delete().eq('language', language);
+    await supabase.from('lang_skill_ability').delete().eq('language', language);
+    await supabase.from('language_assessments').delete().eq('language', language);
+    if (selectedLanguage === language) setSelectedLanguage(null);
+    await fetchAll();
+  }
+
   async function handleModuleCompleted() {
     if (selectedLanguage) {
       await fetchModules(selectedLanguage);
@@ -218,14 +228,21 @@ export default function LanguagePage() {
       {/* Language selector + add */}
       <div className="flex flex-wrap items-center gap-2">
         {assessments.map((a) => (
-          <Button
-            key={a.id}
-            variant={selectedLanguage === a.language ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSelectedLanguage(a.language)}
-          >
-            {a.language}
-          </Button>
+          <div key={a.id} className="relative">
+            <Button
+              variant={selectedLanguage === a.language ? 'default' : 'outline'}
+              size="sm"
+              className="pr-7"
+              onClick={() => setSelectedLanguage(a.language)}
+            >
+              {a.language}
+            </Button>
+            <DeleteButton
+              onDelete={() => handleRemoveLanguage(a.language)}
+              confirmText={`Remove ${a.language}? This deletes its whole curriculum and progress.`}
+              className="absolute right-0.5 top-1/2 -translate-y-1/2"
+            />
+          </div>
         ))}
         <Button
           variant="ghost"
