@@ -37,10 +37,11 @@ export async function POST(req: NextRequest) {
 
     const userId = userData.user.id;
     const body = await req.json();
-    const { goal, experience_level, days_per_week, equipment, injuries_notes } = body as {
+    const { goal, experience_level, days_per_week, training_days, equipment, injuries_notes } = body as {
       goal: GymGoal;
       experience_level: GymExperienceLevel;
       days_per_week: number;
+      training_days?: number[];
       equipment: GymEquipment;
       injuries_notes?: string;
     };
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
           goal,
           experience_level,
           days_per_week,
+          training_days: training_days ?? null,
           equipment,
           injuries_notes: injuries_notes || null,
           ai_summary: aiSummary,

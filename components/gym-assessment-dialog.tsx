@@ -10,11 +10,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Sparkles, Check } from 'lucide-react';
 import { supabase, type GymAssessment, type GymEquipment, type GymExperienceLevel, type GymGoal } from '@/lib/supabase/client';
+import { cn } from '@/lib/utils';
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 type GymAssessmentDialogProps = {
   open: boolean;
@@ -45,7 +47,7 @@ export function GymAssessmentDialog({ open, onClose, onComplete }: GymAssessment
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState<GymGoal | ''>('');
   const [experienceLevel, setExperienceLevel] = useState<GymExperienceLevel | ''>('');
-  const [daysPerWeek, setDaysPerWeek] = useState('3');
+  const [trainingDays, setTrainingDays] = useState<number[]>([1, 3, 5]);
   const [equipment, setEquipment] = useState<GymEquipment | ''>('');
   const [injuriesNotes, setInjuriesNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,10 +59,16 @@ export function GymAssessmentDialog({ open, onClose, onComplete }: GymAssessment
     setStep(0);
     setGoal('');
     setExperienceLevel('');
-    setDaysPerWeek('3');
+    setTrainingDays([1, 3, 5]);
     setEquipment('');
     setInjuriesNotes('');
     setError(null);
+  }
+
+  function toggleTrainingDay(day: number) {
+    setTrainingDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+    );
   }
 
   function handleClose() {
@@ -85,7 +93,8 @@ export function GymAssessmentDialog({ open, onClose, onComplete }: GymAssessment
         body: JSON.stringify({
           goal,
           experience_level: experienceLevel,
-          days_per_week: parseInt(daysPerWeek, 10) || 3,
+          days_per_week: trainingDays.length,
+          training_days: trainingDays,
           equipment,
           injuries_notes: injuriesNotes.trim() || undefined,
         }),
@@ -106,7 +115,7 @@ export function GymAssessmentDialog({ open, onClose, onComplete }: GymAssessment
   function canProceed() {
     if (step === 0) return goal !== '';
     if (step === 1) return experienceLevel !== '';
-    if (step === 2) return equipment !== '' && parseInt(daysPerWeek, 10) >= 1;
+    if (step === 2) return equipment !== '' && trainingDays.length >= 1;
     return true;
   }
 
@@ -196,16 +205,28 @@ export function GymAssessmentDialog({ open, onClose, onComplete }: GymAssessment
           {step === 2 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="days-per-week">Days per week you can train</Label>
-                <Input
-                  id="days-per-week"
-                  type="number"
-                  min="1"
-                  max="7"
-                  value={daysPerWeek}
-                  onChange={(e) => setDaysPerWeek(e.target.value)}
-                  className="w-24"
-                />
+                <Label>Which days can you train?</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAY_LABELS.map((d, i) => (
+                    <button
+                      type="button"
+                      key={i}
+                      onClick={() => toggleTrainingDay(i)}
+                      className={cn(
+                        'rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                        trainingDays.includes(i)
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border text-muted-foreground hover:border-primary/40'
+                      )}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {trainingDays.length} day{trainingDays.length === 1 ? '' : 's'} a week — this also
+                  registers your gym schedule automatically.
+                </p>
               </div>
               <div className="space-y-3">
                 <Label>What equipment do you have?</Label>
@@ -254,8 +275,10 @@ export function GymAssessmentDialog({ open, onClose, onComplete }: GymAssessment
                   <span className="font-medium">{EXPERIENCE_OPTIONS.find((o) => o.value === experienceLevel)?.label}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Days per week</span>
-                  <span className="font-medium">{daysPerWeek}</span>
+                  <span className="text-muted-foreground">Training days</span>
+                  <span className="font-medium">
+                    {trainingDays.map((d) => DAY_LABELS[d]).join(', ')}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Equipment</span>

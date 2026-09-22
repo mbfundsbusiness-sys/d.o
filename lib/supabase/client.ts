@@ -382,6 +382,7 @@ export type GymAssessment = {
   goal: GymGoal;
   experience_level: GymExperienceLevel;
   days_per_week: number;
+  training_days: number[] | null;
   equipment: GymEquipment;
   injuries_notes: string | null;
   ai_summary: string | null;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 import type { GymPlanContent } from '@/lib/supabase/client';
+import { syncGymCommitment, defaultTrainingDays } from '@/lib/gym/schedule-sync';
 
 export const runtime = 'nodejs';
 
@@ -121,6 +122,15 @@ Return ONLY the JSON object for week 1.`,
 
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    const trainingDays = assessment.training_days?.length
+      ? assessment.training_days
+      : defaultTrainingDays(assessment.days_per_week);
+    try {
+      await syncGymCommitment(supabaseServer, userId, trainingDays);
+    } catch (err) {
+      console.error('Failed to sync gym recurring commitment:', err);
     }
 
     return NextResponse.json({ plan: inserted });
