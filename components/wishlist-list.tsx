@@ -21,11 +21,19 @@ import { Loader2, Plus, ExternalLink, Check, RotateCcw } from 'lucide-react';
 const PRIORITY_ORDER: WishlistPriority[] = ['high', 'medium', 'low'];
 const PRIORITY_LABEL: Record<WishlistPriority, string> = { high: 'High', medium: 'Medium', low: 'Low' };
 
-export function WishlistList({ items, onChanged }: { items: WishlistItem[]; onChanged: () => void }) {
+export function WishlistList({
+  items,
+  savingsBalance,
+  onChanged,
+}: {
+  items: WishlistItem[];
+  savingsBalance: number;
+  onChanged: () => void;
+}) {
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
-  const [price, setPrice] = useState('');
+  const [targetCost, setTargetCost] = useState('');
   const [priority, setPriority] = useState<WishlistPriority>('medium');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -41,7 +49,7 @@ export function WishlistList({ items, onChanged }: { items: WishlistItem[]; onCh
     const { error: insErr } = await supabase.from('wishlist_items').insert({
       title: title.trim(),
       url: url.trim() || null,
-      price: price.trim() ? parseFloat(price) || null : null,
+      target_cost: targetCost.trim() ? parseFloat(targetCost) || null : null,
       priority,
       notes: notes.trim() || null,
     });
@@ -53,21 +61,22 @@ export function WishlistList({ items, onChanged }: { items: WishlistItem[]; onCh
     }
     setTitle('');
     setUrl('');
-    setPrice('');
+    setTargetCost('');
     setPriority('medium');
     setNotes('');
     setShowAdd(false);
     onChanged();
   }
 
-  async function togglePurchased(item: WishlistItem) {
+  async function toggleStatus(item: WishlistItem) {
     setBusyId(item.id);
     setError(null);
+    const nowPurchased = item.status !== 'purchased';
     const { error: updErr } = await supabase
       .from('wishlist_items')
       .update({
-        purchased: !item.purchased,
-        purchased_at: !item.purchased ? new Date().toISOString() : null,
+        status: nowPurchased ? 'purchased' : 'active',
+        purchased_at: nowPurchased ? new Date().toISOString() : null,
       })
       .eq('id', item.id);
     if (updErr) setError(updErr.message);
@@ -80,8 +89,8 @@ export function WishlistList({ items, onChanged }: { items: WishlistItem[]; onCh
     onChanged();
   }
 
-  const wanted = items.filter((i) => !i.purchased);
-  const purchased = items.filter((i) => i.purchased);
+  const wanted = items.filter((i) => i.status === 'active');
+  const purchased = items.filter((i) => i.status === 'purchased');
 
   const sortedWanted = PRIORITY_ORDER.flatMap((p) => wanted.filter((i) => i.priority === p));
 
@@ -103,14 +112,14 @@ export function WishlistList({ items, onChanged }: { items: WishlistItem[]; onCh
                 <Input id="wishlist-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="wishlist-price" className="text-xs">Price (£)</Label>
+                <Label htmlFor="wishlist-target-cost" className="text-xs">Target cost (£)</Label>
                 <Input
-                  id="wishlist-price"
+                  id="wishlist-target-cost"
                   type="number"
                   step="0.01"
                   min="0"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  value={targetCost}
+                  onChange={(e) => setTargetCost(e.target.value)}
                 />
               </div>
               <div className="space-y-1">
@@ -158,8 +167,9 @@ export function WishlistList({ items, onChanged }: { items: WishlistItem[]; onCh
               <WishlistRow
                 key={item.id}
                 item={item}
+                savingsBalance={savingsBalance}
                 busy={busyId === item.id}
-                onToggle={() => togglePurchased(item)}
+                onToggle={() => toggleStatus(item)}
                 onDelete={() => handleDelete(item.id)}
               />
             ))}
@@ -173,8 +183,9 @@ export function WishlistList({ items, onChanged }: { items: WishlistItem[]; onCh
               <WishlistRow
                 key={item.id}
                 item={item}
+                savingsBalance={savingsBalance}
                 busy={busyId === item.id}
-                onToggle={() => togglePurchased(item)}
+                onToggle={() => toggleStatus(item)}
                 onDelete={() => handleDelete(item.id)}
               />
             ))}
@@ -193,57 +204,78 @@ const PRIORITY_BADGE: Record<WishlistPriority, string> = {
 
 function WishlistRow({
   item,
+  savingsBalance,
   busy,
   onToggle,
   onDelete,
 }: {
   item: WishlistItem;
+  savingsBalance: number;
   busy: boolean;
   onToggle: () => void;
   onDelete: () => void;
 }) {
+  const purchased = item.status === 'purchased';
+  const targetCost = item.target_cost != null ? Number(item.target_cost) : null;
+  const fundedPct = targetCost && targetCost > 0 ? Math.min(100, (savingsBalance / targetCost) * 100) : null;
+  const shortfall = targetCost != null ? Math.max(0, targetCost - savingsBalance) : null;
+
   return (
-    <div
-      className={`flex items-start justify-between gap-3 rounded-lg border p-3 ${
-        item.purchased ? 'border-border opacity-60' : 'border-border'
-      }`}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`text-sm font-medium ${item.purchased ? 'line-through' : ''}`}>{item.title}</span>
-          {!item.purchased && (
-            <Badge variant="outline" className={`text-[10px] ${PRIORITY_BADGE[item.priority]}`}>
-              {PRIORITY_LABEL[item.priority]}
-            </Badge>
-          )}
-          {item.price != null && (
-            <span className="text-xs tabular-nums text-muted-foreground">£{Number(item.price).toFixed(2)}</span>
+    <div className={`rounded-lg border p-3 ${purchased ? 'border-border opacity-60' : 'border-border'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`text-sm font-medium ${purchased ? 'line-through' : ''}`}>{item.title}</span>
+            {!purchased && (
+              <Badge variant="outline" className={`text-[10px] ${PRIORITY_BADGE[item.priority]}`}>
+                {PRIORITY_LABEL[item.priority]}
+              </Badge>
+            )}
+            {targetCost != null && (
+              <span className="text-xs tabular-nums text-muted-foreground">£{targetCost.toFixed(2)}</span>
+            )}
+          </div>
+          {item.notes && <p className="mt-1 text-xs text-muted-foreground">{item.notes}</p>}
+          {item.url && (
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              View <ExternalLink className="h-3 w-3" />
+            </a>
           )}
         </div>
-        {item.notes && <p className="mt-1 text-xs text-muted-foreground">{item.notes}</p>}
-        {item.url && (
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            View <ExternalLink className="h-3 w-3" />
-          </a>
-        )}
+        <div className="flex shrink-0 items-center gap-1">
+          <Button size="sm" variant="outline" disabled={busy} onClick={onToggle}>
+            {busy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : purchased ? (
+              <RotateCcw className="h-3.5 w-3.5" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+          </Button>
+          <DeleteButton onDelete={async () => onDelete()} confirmText={`Remove "${item.title}" from your wishlist?`} />
+        </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button size="sm" variant="outline" disabled={busy} onClick={onToggle}>
-          {busy ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : item.purchased ? (
-            <RotateCcw className="h-3.5 w-3.5" />
-          ) : (
-            <Check className="h-3.5 w-3.5" />
-          )}
-        </Button>
-        <DeleteButton onDelete={async () => onDelete()} confirmText={`Remove "${item.title}" from your wishlist?`} />
-      </div>
+
+      {!purchased && fundedPct != null && (
+        <div className="mt-2 space-y-1">
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className={`h-full rounded-full ${fundedPct >= 100 ? 'bg-success' : 'bg-foreground/60'}`}
+              style={{ width: `${fundedPct}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {fundedPct >= 100
+              ? 'Fully funded from your savings balance'
+              : `${Math.round(fundedPct)}% funded from savings · £${shortfall!.toFixed(2)} more needed`}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

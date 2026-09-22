@@ -1,31 +1,34 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, type WishlistItem } from '@/lib/supabase/client';
+import { supabase, type WishlistItem, type FinanceEntry } from '@/lib/supabase/client';
 import { WishlistList } from '@/components/wishlist-list';
+import { computeSavingsBalance } from '@/lib/finance/savings';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Gift, Wallet } from 'lucide-react';
+import { Loader2, Gift, Wallet, PiggyBank } from 'lucide-react';
 
 export default function WishlistPage() {
   const [items, setItems] = useState<WishlistItem[]>([]);
+  const [financeEntries, setFinanceEntries] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchItems = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from('wishlist_items')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) setError(error.message);
-    setItems(data ?? []);
+    const [itemsRes, financeRes] = await Promise.all([
+      supabase.from('wishlist_items').select('*').order('created_at', { ascending: false }),
+      supabase.from('finance_entries').select('*'),
+    ]);
+    if (itemsRes.error) setError(itemsRes.error.message);
+    setItems(itemsRes.data ?? []);
+    setFinanceEntries(financeRes.data ?? []);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    fetchAll();
+  }, [fetchAll]);
 
   if (loading) {
     return (
@@ -35,15 +38,17 @@ export default function WishlistPage() {
     );
   }
 
-  const wanted = items.filter((i) => !i.purchased);
-  const totalCost = wanted.reduce((sum, i) => sum + (i.price ? Number(i.price) : 0), 0);
+  const wanted = items.filter((i) => i.status === 'active');
+  const totalCost = wanted.reduce((sum, i) => sum + (i.target_cost ? Number(i.target_cost) : 0), 0);
+  const savingsBalance = computeSavingsBalance(financeEntries);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Wishlist</h1>
         <p className="text-sm text-muted-foreground">
-          Things you want to buy — prioritised, with an estimated running total.
+          Things you want to buy — prioritised, funded against your real savings balance from
+          Finance.
         </p>
       </div>
 
@@ -53,7 +58,7 @@ export default function WishlistPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -66,13 +71,22 @@ export default function WishlistPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Estimated total</span>
+              <span className="text-xs font-medium text-muted-foreground">Target total</span>
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </div>
             <p className="mt-2 text-2xl font-semibold tabular-nums">£{totalCost.toFixed(2)}</p>
           </CardContent>
         </Card>
-        <Card className="col-span-2 sm:col-span-1">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Savings balance</span>
+              <PiggyBank className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">£{savingsBalance.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">Purchased</span>
@@ -84,7 +98,7 @@ export default function WishlistPage() {
         </Card>
       </div>
 
-      <WishlistList items={items} onChanged={fetchItems} />
+      <WishlistList items={items} savingsBalance={savingsBalance} onChanged={fetchAll} />
     </div>
   );
 }

@@ -535,16 +535,17 @@ export type TodoItem = {
 // --- Wishlist ---
 
 export type WishlistPriority = 'low' | 'medium' | 'high';
+export type WishlistStatus = 'active' | 'purchased';
 
 export type WishlistItem = {
   id: string;
   user_id: string;
   title: string;
   url: string | null;
-  price: number | null;
+  target_cost: number | null;
   priority: WishlistPriority;
   notes: string | null;
-  purchased: boolean;
+  status: WishlistStatus;
   purchased_at: string | null;
   created_at: string;
 };

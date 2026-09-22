@@ -17,6 +17,7 @@ import {
 import { Loader2, ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp, TrendingDown, PiggyBank } from 'lucide-react';
 import { DeleteButton } from '@/components/delete-button';
 import { todayISO, formatDateUK } from '@/lib/utils/dates';
+import { computeSavingsBalance, SAVINGS_CATEGORY } from '@/lib/finance/savings';
 
 export default function FinancePage() {
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
@@ -32,6 +33,11 @@ export default function FinancePage() {
 
   // View state
   const [view, setView] = useState<'recent' | 'weekly' | 'monthly'>('recent');
+
+  // Savings transfer form
+  const [savingsAmount, setSavingsAmount] = useState('');
+  const [savingsDirection, setSavingsDirection] = useState<'out' | 'in'>('out');
+  const [savingsSubmitting, setSavingsSubmitting] = useState(false);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -93,7 +99,9 @@ export default function FinancePage() {
     }
   }
 
-  // Totals
+  // Totals — spendable net needs no special-casing: a savings transfer is
+  // still a real out-flow (or a withdrawal a real in-flow), so it's already
+  // correctly reflected here. Savings balance is a separate, additional read.
   const totals = useMemo(() => {
     const totalIn = entries.filter(e => e.type === 'in').reduce((s, e) => s + Number(e.amount), 0);
     const totalOut = entries.filter(e => e.type === 'out').reduce((s, e) => s + Number(e.amount), 0);
@@ -102,14 +110,16 @@ export default function FinancePage() {
     return { totalIn, totalOut, net, income };
   }, [entries]);
 
-  // Weekly breakdown
+  const savingsBalance = useMemo(() => computeSavingsBalance(entries), [entries]);
+
+  // Weekly breakdown — savings transfers excluded, they're not spending
   const weeklyData = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     const weekStart = new Date(now);
     weekStart.setDate(weekStart.getDate() - 6);
 
-    const weekEntries = entries.filter(e => new Date(e.entry_date + 'T00:00:00') >= weekStart);
+    const weekEntries = entries.filter(e => new Date(e.entry_date + 'T00:00:00') >= weekStart && e.category !== SAVINGS_CATEGORY);
     return breakdownByCategory(weekEntries);
   }, [entries]);
 
@@ -118,7 +128,7 @@ export default function FinancePage() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const monthEntries = entries.filter(e => new Date(e.entry_date + 'T00:00:00') >= monthStart);
+    const monthEntries = entries.filter(e => new Date(e.entry_date + 'T00:00:00') >= monthStart && e.category !== SAVINGS_CATEGORY);
     return breakdownByCategory(monthEntries);
   }, [entries]);
 
@@ -126,6 +136,30 @@ export default function FinancePage() {
 
   async function handleDeleteEntry(id: string) {
     await supabase.from('finance_entries').delete().eq('id', id);
+    fetchEntries();
+  }
+
+  async function handleSavingsTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!savingsAmount || savingsSubmitting) return;
+    setSavingsSubmitting(true);
+    setError(null);
+
+    const { error: insErr } = await supabase.from('finance_entries').insert({
+      entry_date: todayISO(),
+      amount: parseFloat(savingsAmount),
+      type: savingsDirection,
+      category: SAVINGS_CATEGORY,
+      note: savingsDirection === 'out' ? 'Moved to savings' : 'Withdrawn from savings',
+      ai_categorised: false,
+    });
+
+    setSavingsSubmitting(false);
+    if (insErr) {
+      setError(insErr.message);
+      return;
+    }
+    setSavingsAmount('');
     fetchEntries();
   }
 
@@ -153,12 +187,58 @@ export default function FinancePage() {
       )}
 
       {/* Totals */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatCard label="Money in" value={`£${totals.totalIn.toFixed(2)}`} icon={ArrowDownLeft} tone="text-success" />
         <StatCard label="Money out" value={`£${totals.totalOut.toFixed(2)}`} icon={ArrowUpRight} tone="text-error" />
-        <StatCard label="Net" value={`£${totals.net.toFixed(2)}`} icon={Wallet} tone={totals.net >= 0 ? 'text-success' : 'text-error'} />
+        <StatCard label="Spendable net" value={`£${totals.net.toFixed(2)}`} icon={Wallet} tone={totals.net >= 0 ? 'text-success' : 'text-error'} />
         <StatCard label="Income tracked" value={`£${totals.income.toFixed(2)}`} icon={PiggyBank} tone="text-primary" />
+        <StatCard label="Savings balance" value={`£${savingsBalance.toFixed(2)}`} icon={PiggyBank} tone="text-primary" />
       </div>
+
+      {/* Savings transfer */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Savings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Money set aside is tracked separately from day-to-day spending — moving money here
+            reduces your spendable net (it really did leave), and funds your Wishlist items'
+            progress.
+          </p>
+          <form onSubmit={handleSavingsTransfer} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="space-y-2">
+              <Label className="text-xs">Direction</Label>
+              <Select value={savingsDirection} onValueChange={(v) => setSavingsDirection(v as 'out' | 'in')}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="out">Move to savings</SelectItem>
+                  <SelectItem value="in">Withdraw from savings</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Amount (£)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={savingsAmount}
+                onChange={(e) => setSavingsAmount(e.target.value)}
+                className="w-32"
+                required
+              />
+            </div>
+            <Button type="submit" disabled={savingsSubmitting || !savingsAmount}>
+              {savingsSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Transfer
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Quick entry form */}
       <Card>
