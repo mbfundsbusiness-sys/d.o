@@ -26,14 +26,38 @@ category='savings' IS a savings transfer.
   backfilled from it
 - title, url, priority, notes, purchased_at, created_at unchanged
 
+Rewritten to be fully idempotent — safe to run even if an earlier attempt
+partially applied (e.g. renamed the column already).
+
 ## Security
 - No RLS changes — same owner-scoped policies as before.
 */
 
-ALTER TABLE wishlist_items RENAME COLUMN price TO target_cost;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'wishlist_items' AND column_name = 'price'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'wishlist_items' AND column_name = 'target_cost'
+  ) THEN
+    ALTER TABLE wishlist_items RENAME COLUMN price TO target_cost;
+  END IF;
+END $$;
 
+ALTER TABLE wishlist_items ADD COLUMN IF NOT EXISTS target_cost numeric(10,2);
 ALTER TABLE wishlist_items ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active';
-UPDATE wishlist_items SET status = 'purchased' WHERE purchased = true AND status = 'active';
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'wishlist_items' AND column_name = 'purchased'
+  ) THEN
+    UPDATE wishlist_items SET status = 'purchased' WHERE purchased = true AND status = 'active';
+  END IF;
+END $$;
 
 DO $$
 BEGIN
