@@ -27,12 +27,21 @@ export type SchedulerResult = {
   skipped: { commitment: RecurringCommitment; reason: string }[];
 };
 
+// Prayer is registered as recurring_commitments (for visibility — see
+// lib/prayer/schedule-sync.ts) but its blocks are never placed by this
+// generic gap-finder: exact externally-calculated times aren't something
+// to negotiate against other commitments. It has its own regeneration path
+// (syncPrayerSchedule) and is excluded here in both directions — this
+// scheduler must never delete prayer's blocks, and must never try to place
+// a prayer commitment itself, or the two regenerators fight over the day.
+const EXCLUDED_ACTIVITY_TYPES = ['prayer'];
+
 /**
- * Regenerates every 'auto' schedule_blocks row for one day-of-week, from
- * scratch, based on currently-active recurring_commitments that apply to
- * that day. Manual rows (source='manual') are never read, moved, or
- * deleted — they're simply treated as pre-occupied windows the scheduler
- * has to work around.
+ * Regenerates every 'auto' schedule_blocks row for one day-of-week (except
+ * prayer's, see above), from scratch, based on currently-active
+ * recurring_commitments that apply to that day. Manual rows
+ * (source='manual') are never read, moved, or deleted — they're simply
+ * treated as pre-occupied windows the scheduler has to work around.
  */
 export async function regenerateAutoBlocksForDay(
   supabase: SupabaseClient,
@@ -51,17 +60,26 @@ export async function regenerateAutoBlocksForDay(
 
   const existing = (existingRes.data ?? []) as ScheduleBlock[];
   const allCommitments = (commitmentsRes.data ?? []) as RecurringCommitment[];
-  const commitments = allCommitments.filter((c) => (c.applies_days ?? []).includes(dayOfWeek));
+  const commitments = allCommitments.filter(
+    (c) => (c.applies_days ?? []).includes(dayOfWeek) && !EXCLUDED_ACTIVITY_TYPES.includes(c.activity_type)
+  );
 
   const manualBlocks = existing.filter((b) => b.source === 'manual');
-  const autoBlockIds = existing.filter((b) => b.source === 'auto').map((b) => b.id);
+  const autoBlockIds = existing
+    .filter((b) => b.source === 'auto' && !EXCLUDED_ACTIVITY_TYPES.includes(b.activity_type))
+    .map((b) => b.id);
 
-  // Clear this day's auto rows — regenerated fresh below. Manual rows untouched.
+  // Clear this day's auto rows (excluding prayer's) — regenerated fresh
+  // below. Manual rows, and prayer's independently-managed rows, untouched.
   if (autoBlockIds.length > 0) {
     await supabase.from('schedule_blocks').delete().in('id', autoBlockIds);
   }
 
-  const occupied: Window[] = manualBlocks.map((b) => ({
+  // Prayer's own auto blocks still occupy real time on the day — the
+  // generic scheduler must route around them same as a manual block would.
+  const prayerBlocks = existing.filter((b) => b.source === 'auto' && b.activity_type === 'prayer');
+
+  const occupied: Window[] = [...manualBlocks, ...prayerBlocks].map((b) => ({
     startMin: minutesOfDay(b.start_time),
     endMin: minutesOfDay(b.end_time),
   }));

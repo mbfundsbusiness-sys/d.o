@@ -30,7 +30,10 @@ const ACTIVITY_OPTIONS: { value: ScheduleActivityType; label: string }[] = [
   { value: 'language', label: 'Language' },
   { value: 'course', label: 'Course' },
   { value: 'reading', label: 'Reading' },
-  { value: 'prayer', label: 'Prayer' },
+  // 'prayer' deliberately excluded — those 5 commitments are system-managed
+  // by the Prayer page's daily sync (see lib/prayer/schedule-sync.ts) and
+  // never placed by this generic scheduler; adding one here would just
+  // silently never appear on the schedule.
   { value: 'custom', label: 'Custom' },
 ];
 

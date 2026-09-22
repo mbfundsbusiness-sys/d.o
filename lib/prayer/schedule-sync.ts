@@ -22,7 +22,7 @@ async function registerPrayerCommitments(
   supabase: SupabaseClient,
   userId: string,
   times: PrayerTimesOfDay
-): Promise<void> {
+): Promise<Map<string, string>> {
   const { data: existing } = await supabase
     .from('recurring_commitments')
     .select('id, label')
@@ -45,9 +45,16 @@ async function registerPrayerCommitments(
     if (existingId) {
       await supabase.from('recurring_commitments').update(fields).eq('id', existingId);
     } else {
-      await supabase.from('recurring_commitments').insert({ user_id: userId, ...fields });
+      const { data: inserted } = await supabase
+        .from('recurring_commitments')
+        .insert({ user_id: userId, ...fields })
+        .select('id')
+        .single();
+      if (inserted) existingByLabel.set(label, inserted.id);
     }
   }
+
+  return existingByLabel;
 }
 
 /**
@@ -64,7 +71,7 @@ export async function syncPrayerSchedule(
   dayOfWeek: number,
   times: PrayerTimesOfDay
 ): Promise<void> {
-  await registerPrayerCommitments(supabase, userId, times);
+  const commitmentIdByLabel = await registerPrayerCommitments(supabase, userId, times);
 
   const { data: existingBlocks } = await supabase
     .from('schedule_blocks')
@@ -89,6 +96,7 @@ export async function syncPrayerSchedule(
       end_time: minutesToHM(startMin + PRAYER_DURATION_MIN),
       label,
       source: 'auto',
+      commitment_id: commitmentIdByLabel.get(label) ?? null,
     };
   });
 
