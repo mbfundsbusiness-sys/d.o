@@ -1,25 +1,32 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, type ScheduleBlock } from '@/lib/supabase/client';
+import { supabase, type ScheduleBlock, type RecurringCommitment } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/provider';
 import { ScheduleToday } from '@/components/schedule-today';
 import { ScheduleWeekEditor } from '@/components/schedule-week-editor';
 import { ScheduleWeekGrid } from '@/components/schedule-week-grid';
+import { RecurringCommitmentsEditor } from '@/components/recurring-commitments-editor';
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { buildScheduleIcs, downloadIcs } from '@/lib/schedule/ics';
+import { regenerateAutoBlocksForDay } from '@/lib/schedule/auto-scheduler';
+import { londonNow } from '@/lib/utils/dates';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CalendarPlus, List, LayoutGrid } from 'lucide-react';
+import { Loader2, CalendarPlus, List, LayoutGrid, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const VIEW_STORAGE_KEY = 'schedule-view';
 type ScheduleView = 'list' | 'grid';
 
 export default function SchedulePage() {
+  const { user } = useAuth();
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
+  const [commitments, setCommitments] = useState<RecurringCommitment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<ScheduleView>('list');
+  const [regenerating, setRegenerating] = useState(false);
   const { settings, loading: settingsLoading } = useUserSettings();
 
   useEffect(() => {
@@ -41,19 +48,38 @@ export default function SchedulePage() {
   }
 
   const fetchBlocks = useCallback(async () => {
-    const { data, error: e } = await supabase
-      .from('schedule_blocks')
-      .select('*')
-      .order('day_of_week', { ascending: true })
-      .order('start_time', { ascending: true });
-    if (e) setError(e.message);
-    else setBlocks(data ?? []);
+    const [blocksRes, commitmentsRes] = await Promise.all([
+      supabase
+        .from('schedule_blocks')
+        .select('*')
+        .order('day_of_week', { ascending: true })
+        .order('start_time', { ascending: true }),
+      supabase.from('recurring_commitments').select('*').order('priority', { ascending: false }),
+    ]);
+    if (blocksRes.error) setError(blocksRes.error.message);
+    else setBlocks(blocksRes.data ?? []);
+    if (!commitmentsRes.error) setCommitments(commitmentsRes.data ?? []);
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchBlocks();
   }, [fetchBlocks]);
+
+  async function handleRegenerateToday() {
+    if (!user) return;
+    setRegenerating(true);
+    setError(null);
+    try {
+      const dow = londonNow().dayOfWeek;
+      await regenerateAutoBlocksForDay(supabase, user.id, dow);
+      await fetchBlocks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to regenerate schedule');
+    } finally {
+      setRegenerating(false);
+    }
+  }
 
   if (loading || settingsLoading) {
     return (
@@ -101,6 +127,14 @@ export default function SchedulePage() {
               Graph
             </button>
           </div>
+          <Button variant="outline" size="sm" onClick={handleRegenerateToday} disabled={regenerating}>
+            {regenerating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Regenerate today
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExportIcs} disabled={blocks.length === 0}>
             <CalendarPlus className="mr-2 h-4 w-4" />
             Add to Apple Calendar
@@ -120,6 +154,10 @@ export default function SchedulePage() {
         <ScheduleWeekGrid blocks={blocks} settings={settings} />
       ) : (
         <ScheduleWeekEditor blocks={blocks} settings={settings} onChanged={fetchBlocks} />
+      )}
+
+      {user && (
+        <RecurringCommitmentsEditor commitments={commitments} userId={user.id} onChanged={fetchBlocks} />
       )}
     </div>
   );

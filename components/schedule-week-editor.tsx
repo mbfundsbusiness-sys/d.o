@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Loader2, Sparkles } from 'lucide-react';
 import { fmtHM } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
 
@@ -89,9 +89,11 @@ export function ScheduleWeekEditor({
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {DAYS.map(({ dow, name }) => {
-          const dayBlocks = blocks
+          const dayBlocksAll = blocks
             .filter((b) => b.day_of_week === dow)
             .sort((a, b) => a.start_time.localeCompare(b.start_time));
+          const dayBlocks = dayBlocksAll.filter((b) => b.source === 'manual');
+          const autoBlocks = dayBlocksAll.filter((b) => b.source === 'auto');
           const derivedJummah =
             dow === 5
               ? effectiveBlocksForDay(blocks, settings, 5).find((b) => b.derived)
@@ -109,9 +111,30 @@ export function ScheduleWeekEditor({
                 </Button>
               </div>
 
-              {dayBlocks.length === 0 && !derivedJummah && (
+              {dayBlocks.length === 0 && autoBlocks.length === 0 && !derivedJummah && (
                 <p className="text-xs text-muted-foreground">No blocks.</p>
               )}
+
+              {autoBlocks.map((b) => (
+                <div
+                  key={b.id}
+                  className="flex items-center gap-2 rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground"
+                >
+                  <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                  <span className="font-medium text-foreground">{b.label}</span>
+                  <span className="capitalize">({b.activity_type})</span>
+                  <span className="tabular-nums">{fmtHM(b.start_time)}–{fmtHM(b.end_time)}</span>
+                  <span className="flex-1" />
+                  <span>Auto — from recurring commitments</span>
+                  <button
+                    onClick={() => deleteBlock(b.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                    title="Remove this occurrence"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
 
               {dayBlocks.map((b) => (
                 <div

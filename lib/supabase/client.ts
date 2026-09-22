@@ -461,7 +461,17 @@ export type ReadingMaterial = {
 
 // --- Schedule + settings types ---
 
-export type ScheduleActivityType = 'trading' | 'botcouncil' | 'reading' | 'custom';
+export type ScheduleActivityType =
+  | 'trading'
+  | 'botcouncil'
+  | 'reading'
+  | 'custom'
+  | 'gym'
+  | 'language'
+  | 'course'
+  | 'prayer';
+
+export type ScheduleBlockSource = 'auto' | 'manual';
 
 export type ScheduleBlock = {
   id: string;
@@ -471,6 +481,24 @@ export type ScheduleBlock = {
   start_time: string;
   end_time: string;
   label: string;
+  source: ScheduleBlockSource;
+  commitment_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// --- Recurring commitments (universal scheduling source of truth) ---
+
+export type RecurringCommitment = {
+  id: string;
+  user_id: string;
+  activity_type: ScheduleActivityType;
+  label: string;
+  target_duration_min: number;
+  applies_days: number[];
+  preferred_start_time: string | null;
+  priority: number;
+  active: boolean;
   created_at: string;
   updated_at: string;
 };
