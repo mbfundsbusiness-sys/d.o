@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, type PrayerLog, type PrayerName } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/provider';
+import type { PrayerTimesOfDay } from '@/app/api/prayer/times/route';
+import { syncPrayerSchedule } from '@/lib/prayer/schedule-sync';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Check, Flame, Sunrise, Sun, Sunset, Moon, CloudSun } from 'lucide-react';
-import { todayISO, formatDateUK, fmtHM } from '@/lib/utils/dates';
+import { todayISO, formatDateUK, fmtHM, londonNow } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils';
-import { useUserSettings } from '@/lib/settings/use-user-settings';
-import Link from 'next/link';
 
 const PRAYERS: { name: PrayerName; label: string; icon: typeof Sunrise }[] = [
   { name: 'fajr', label: 'Fajr', icon: Sunrise },
@@ -20,13 +21,48 @@ const PRAYERS: { name: PrayerName; label: string; icon: typeof Sunrise }[] = [
 ];
 
 export default function PrayerPage() {
+  const { user } = useAuth();
   const [logs, setLogs] = useState<PrayerLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
-  const { settings: userSettings } = useUserSettings();
+  const [calcTimes, setCalcTimes] = useState<PrayerTimesOfDay | null>(null);
+  const [timesError, setTimesError] = useState<string | null>(null);
 
   const today = todayISO();
+
+  // Fetch (or trigger calculation of) today's real prayer times, then write
+  // them into the schedule as real auto blocks — prayer is a registrant
+  // like every other module now, not a manually-typed special case.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) return;
+
+        const res = await fetch(`/api/prayer/times?date=${today}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load prayer times');
+        if (cancelled) return;
+
+        setCalcTimes(data.times);
+        await syncPrayerSchedule(supabase, user.id, londonNow().dayOfWeek, data.times);
+      } catch (err) {
+        if (!cancelled) setTimesError(err instanceof Error ? err.message : 'Failed to load prayer times');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, today]);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -169,19 +205,13 @@ export default function PrayerPage() {
       {/* Disclaimer */}
       <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3">
         <p className="text-xs text-muted-foreground">
-          This is a logging tool for tracking consistency — not an alert system.
-          A web app can't reliably send notifications while your phone is locked.
-          Use it to check in and record, not to be reminded.
+          Times below are calculated for London (Moonsighting Committee method) and written into
+          your Schedule automatically each day, with the same 15-minutes-before in-app alert as
+          everything else — but it only fires while the app is open in a tab; a web app can't
+          reliably notify you while your phone is locked. Fridays swap Dhuhr for your Jummah time
+          from Settings.
         </p>
-        {!userSettings?.prayer_times || Object.keys(userSettings.prayer_times).length === 0 ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Want your prayer times shown here (and included in the in-app schedule alerts)?{' '}
-            <Link href="/app/settings" className="underline underline-offset-2 hover:text-foreground">
-              Set them in Settings
-            </Link>
-            .
-          </p>
-        ) : null}
+        {timesError && <p className="mt-2 text-xs text-destructive">{timesError}</p>}
       </div>
 
       {error && (
@@ -264,9 +294,9 @@ export default function PrayerPage() {
                   )}>
                     {p.label}
                   </span>
-                  {userSettings?.prayer_times?.[p.name] && (
+                  {calcTimes?.[p.name] && (
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      {fmtHM(userSettings.prayer_times[p.name]!)}
+                      {fmtHM(calcTimes[p.name])}
                     </span>
                   )}
                 </button>

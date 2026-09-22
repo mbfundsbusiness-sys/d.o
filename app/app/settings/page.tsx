@@ -187,12 +187,13 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Prayer times</CardTitle>
+          <CardTitle className="text-lg">Prayer times (manual override)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Set your own times — nothing is calculated or fetched. Shown on the Prayer page and
-            fed into the same in-app alerts as your schedule.
+            The Prayer page now calculates and schedules Fajr–Isha automatically for London, so
+            this manual field is no longer needed for alerts — it's kept here only in case you
+            ever want to override a specific time by hand.
           </p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             {PRAYER_ORDER.map((p) => (

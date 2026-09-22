@@ -8,20 +8,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import { supabase, type ScheduleBlock, type UserSettings, type PrayerName, type TodoItem } from '@/lib/supabase/client';
+import { supabase, type ScheduleBlock, type UserSettings, type TodoItem } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/provider';
-import { londonNow, minutesOfDay, fmtHM } from '@/lib/utils/dates';
+import { londonNow } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
-
-const PRAYER_LABELS: Record<PrayerName, string> = {
-  fajr: 'Fajr',
-  dhuhr: 'Dhuhr',
-  asr: 'Asr',
-  maghrib: 'Maghrib',
-  isha: 'Isha',
-};
-
-type AlertableBlock = { id: string; label: string; startMin: number; start_time: string; end_time: string };
 
 export type ScheduleBanner = {
   id: string; // dedupe key
@@ -110,23 +100,11 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
   const check = useCallback(() => {
     if (!user) return;
     const now = londonNow();
-    const scheduleToday = effectiveBlocksForDay(blocksRef.current, settingsRef.current, now.dayOfWeek);
-
-    const prayerTimes = settingsRef.current?.prayer_times ?? {};
-    const prayerBlocks: AlertableBlock[] = (Object.keys(prayerTimes) as PrayerName[])
-      .filter((name) => prayerTimes[name])
-      .map((name) => {
-        const startMin = minutesOfDay(prayerTimes[name]!);
-        return {
-          id: `prayer-${name}`,
-          label: PRAYER_LABELS[name],
-          startMin,
-          start_time: fmtHM(prayerTimes[name]!),
-          end_time: fmtHM(prayerTimes[name]!),
-        };
-      });
-
-    const today: AlertableBlock[] = [...scheduleToday, ...prayerBlocks];
+    // Prayer used to be a separate settings.prayer_times-driven virtual
+    // block here; it's now a real schedule_blocks row (source='auto',
+    // activity_type='prayer', written by lib/prayer/schedule-sync.ts) and
+    // gets its alert from this same loop like every other module.
+    const today = effectiveBlocksForDay(blocksRef.current, settingsRef.current, now.dayOfWeek);
 
     for (const block of today) {
       const minsUntil = block.startMin - now.minutesOfDay;
