@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Gift,
   ListTodo,
+  GraduationCap,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -33,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/app/language', label: 'Language', icon: Languages },
   { href: '/app/reading', label: 'Reading', icon: BookOpen },
   { href: '/app/course', label: 'Course', icon: ShieldCheck },
+  { href: '/app/courses', label: 'My Courses', icon: GraduationCap },
   { href: '/app/ghostwriter', label: 'Ghostwriter', icon: Feather },
   { href: '/app/finance', label: 'Finance', icon: Wallet },
   { href: '/app/wishlist', label: 'Wishlist', icon: Gift },

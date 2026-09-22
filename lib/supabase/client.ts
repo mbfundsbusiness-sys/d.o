@@ -532,6 +532,24 @@ export type TodoItem = {
   created_at: string;
 };
 
+// --- Manually-logged external courses (no AI — see the AI "Course"
+// companion module's CourseProfile/CourseModule for the AI-driven track) ---
+
+export type CourseLogStatus = 'active' | 'completed';
+
+export type CourseLog = {
+  id: string;
+  user_id: string;
+  title: string;
+  platform: string | null;
+  module_lesson: string | null;
+  progress_percent: number;
+  notes: string | null;
+  status: CourseLogStatus;
+  created_at: string;
+  updated_at: string;
+};
+
 // --- Wishlist ---
 
 export type WishlistPriority = 'low' | 'medium' | 'high';

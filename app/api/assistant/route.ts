@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { callGemini, getGeminiApiKey } from '@/lib/gemini';
+import { londonNow } from '@/lib/utils/dates';
+import { effectiveBlocksForDay } from '@/lib/schedule/effective';
+import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +18,7 @@ Your role:
 - If they're doing well, acknowledge it briefly and push for the next step
 - Never give financial advice or trading recommendations — focus on process discipline
 
-You have access to the last 7 days of their data as context. Use it.`;
+You have access to the last 7 days of their activity, plus their current recurring commitments, today's actual schedule, courses, and wishlist. Use it — you should be able to answer "how's my week actually going" by looking at all of it together, not just one module.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,7 +46,21 @@ export async function POST(req: NextRequest) {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
-    const [anchorLogs, jobApps, tradingSessions, gymSessions, languageSessions, jobSearchSessions, botCouncilChecks, conversationHistory] = await Promise.all([
+    const [
+      anchorLogs,
+      jobApps,
+      tradingSessions,
+      gymSessions,
+      languageSessions,
+      jobSearchSessions,
+      botCouncilChecks,
+      conversationHistory,
+      recurringCommitments,
+      scheduleBlocksRes,
+      userSettingsRes,
+      coursesRes,
+      wishlistRes,
+    ] = await Promise.all([
       supabaseServer.from('anchor_logs').select('*').eq('user_id', userId).gte('created_at', sevenDaysAgoISO).order('log_date', { ascending: false }),
       supabaseServer.from('job_applications').select('*').eq('user_id', userId).gte('created_at', sevenDaysAgoISO).order('updated_at', { ascending: false }),
       supabaseServer.from('trading_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
@@ -52,6 +69,12 @@ export async function POST(req: NextRequest) {
       supabaseServer.from('job_search_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
       supabaseServer.from('botcouncil_checks').select('*').eq('user_id', userId).gte('checked_at', sevenDaysAgoISO).order('checked_at', { ascending: false }),
       supabaseServer.from('assistant_conversations').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(20),
+      // Scheduling-architecture continuity — every table the rework introduced, not a subset.
+      supabaseServer.from('recurring_commitments').select('*').eq('user_id', userId).eq('active', true).order('priority', { ascending: false }),
+      supabaseServer.from('schedule_blocks').select('*').eq('user_id', userId),
+      supabaseServer.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
+      supabaseServer.from('courses').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabaseServer.from('wishlist_items').select('*').eq('user_id', userId).order('priority', { ascending: false }),
     ]);
 
     // Build context string
@@ -103,9 +126,43 @@ export async function POST(req: NextRequest) {
       ).join('\n')}`);
     }
 
+    if (recurringCommitments.data && recurringCommitments.data.length > 0) {
+      const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      contextParts.push(`=== Recurring Commitments (active — what's supposed to happen regularly) ===\n${recurringCommitments.data.map((c: { label: string; activity_type: string; target_duration_min: number; applies_days: number[]; preferred_start_time: string | null; priority: number }) =>
+        `${c.label} (${c.activity_type}): ${c.target_duration_min}min on ${c.applies_days.map((d) => DAY_NAMES[d]).join('/')}${c.preferred_start_time ? `, preferred ${c.preferred_start_time}` : ''}, priority ${c.priority}`
+      ).join('\n')}`);
+    }
+
+    if (!scheduleBlocksRes.error) {
+      const blocks = (scheduleBlocksRes.data ?? []) as ScheduleBlock[];
+      const settings = (userSettingsRes.data ?? null) as UserSettings | null;
+      const now = londonNow();
+      const todayBlocks = effectiveBlocksForDay(blocks, settings, now.dayOfWeek);
+      const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      contextParts.push(
+        todayBlocks.length > 0
+          ? `=== Today's Schedule (${DAY_NAMES[now.dayOfWeek]}, generated + manual, Europe/London) ===\n${todayBlocks.map((b) =>
+              `${b.start_time}-${b.end_time}: ${b.label} (${b.activity_type})${b.derived ? ' [Jummah override]' : ''}`
+            ).join('\n')}`
+          : `=== Today's Schedule (${DAY_NAMES[now.dayOfWeek]}) ===\nNothing scheduled today.`
+      );
+    }
+
+    if (coursesRes.data && coursesRes.data.length > 0) {
+      contextParts.push(`=== Courses (manually logged, no AI) ===\n${coursesRes.data.map((c: { title: string; platform: string | null; module_lesson: string | null; progress_percent: number; status: string }) =>
+        `${c.title}${c.platform ? ` (${c.platform})` : ''} — ${c.status}, ${c.progress_percent}% done${c.module_lesson ? `, currently: ${c.module_lesson}` : ''}`
+      ).join('\n')}`);
+    }
+
+    if (wishlistRes.data && wishlistRes.data.length > 0) {
+      contextParts.push(`=== Wishlist ===\n${wishlistRes.data.map((w: { title: string; target_cost: number | null; priority: string; status: string }) =>
+        `${w.title}${w.target_cost != null ? ` — £${Number(w.target_cost).toFixed(2)}` : ''}, priority ${w.priority}, ${w.status}`
+      ).join('\n')}`);
+    }
+
     const contextStr = contextParts.length > 0
-      ? `\n\n--- USER DATA (last 7 days) ---\n${contextParts.join('\n\n')}\n--- END USER DATA ---\n`
-      : '\n\n--- USER DATA (last 7 days) ---\nNo activity logged in the last 7 days.\n--- END USER DATA ---\n';
+      ? `\n\n--- USER DATA (activity/session sections are last 7 days; Recurring Commitments, Today's Schedule, Courses, and Wishlist are current state, not time-windowed) ---\n${contextParts.join('\n\n')}\n--- END USER DATA ---\n`
+      : '\n\n--- USER DATA ---\nNo activity logged in the last 7 days.\n--- END USER DATA ---\n';
 
     // Build conversation messages for Anthropic
     const historyMessages: { role: 'user' | 'assistant'; content: string }[] = [];
