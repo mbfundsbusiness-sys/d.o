@@ -14,6 +14,7 @@ import {
   Settings,
   ShieldCheck,
   Gift,
+  ListTodo,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -24,6 +25,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: '/app', label: 'Today', icon: LayoutDashboard },
+  { href: '/app/todo', label: 'To-do', icon: ListTodo },
   { href: '/app/schedule', label: 'Schedule', icon: CalendarClock },
   { href: '/app/roadmap', label: 'Roadmap', icon: Map },
   { href: '/app/trading', label: 'Trading', icon: CandlestickChart },

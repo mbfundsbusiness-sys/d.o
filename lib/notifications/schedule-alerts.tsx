@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { supabase, type ScheduleBlock, type UserSettings, type PrayerName } from '@/lib/supabase/client';
+import { supabase, type ScheduleBlock, type UserSettings, type PrayerName, type TodoItem } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/provider';
 import { londonNow, minutesOfDay, fmtHM } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
@@ -70,6 +70,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
   const [banners, setBanners] = useState<ScheduleBanner[]>([]);
   const blocksRef = useRef<ScheduleBlock[]>([]);
   const settingsRef = useRef<UserSettings | null>(null);
+  const todosRef = useRef<TodoItem[]>([]);
   const firedRef = useRef<Set<string>>(new Set());
 
   const dismiss = useCallback((id: string) => {
@@ -96,12 +97,14 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [blocksRes, settingsRes] = await Promise.all([
+    const [blocksRes, settingsRes, todosRes] = await Promise.all([
       supabase.from('schedule_blocks').select('*'),
       supabase.from('user_settings').select('*').maybeSingle(),
+      supabase.from('todo_items').select('*').eq('completed', false).not('due_at', 'is', null),
     ]);
     if (!blocksRes.error) blocksRef.current = (blocksRes.data ?? []) as ScheduleBlock[];
     if (!settingsRes.error) settingsRef.current = (settingsRes.data ?? null) as UserSettings | null;
+    if (!todosRes.error) todosRef.current = (todosRes.data ?? []) as TodoItem[];
   }, [user]);
 
   const check = useCallback(() => {
@@ -152,6 +155,41 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
           kind: 'start',
           title: `${block.label} — starting now`,
           body: range,
+        });
+      }
+    }
+
+    // To-dos: a one-off absolute due time rather than a recurring
+    // time-of-day, so this is a plain millisecond diff, not the
+    // day-of-week/minutes-of-day machinery above.
+    const nowMs = Date.now();
+    for (const todo of todosRef.current) {
+      if (!todo.due_at) continue;
+      const dueMs = new Date(todo.due_at).getTime();
+      const minsUntil = Math.round((dueMs - nowMs) / 60_000);
+      const due = new Date(todo.due_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+      const t15Key = `todo-${todo.id}:t15`;
+      if (minsUntil > 0 && minsUntil <= 15 && !firedRef.current.has(t15Key)) {
+        firedRef.current.add(t15Key);
+        persistFired(firedRef.current);
+        fire({
+          id: t15Key,
+          kind: 't15',
+          title: `${todo.title} in ${minsUntil} min`,
+          body: `Due at ${due}`,
+        });
+      }
+
+      const startKey = `todo-${todo.id}:start`;
+      if (minsUntil <= 0 && minsUntil > -3 && !firedRef.current.has(startKey)) {
+        firedRef.current.add(startKey);
+        persistFired(firedRef.current);
+        fire({
+          id: startKey,
+          kind: 'start',
+          title: `${todo.title} — due now`,
+          body: due,
         });
       }
     }

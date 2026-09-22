@@ -490,6 +490,19 @@ export type UserSettings = {
   updated_at: string;
 };
 
+// --- To-do list ---
+
+export type TodoItem = {
+  id: string;
+  user_id: string;
+  title: string;
+  notes: string | null;
+  due_at: string | null;
+  completed: boolean;
+  completed_at: string | null;
+  created_at: string;
+};
+
 // --- Wishlist ---
 
 export type WishlistPriority = 'low' | 'medium' | 'high';
