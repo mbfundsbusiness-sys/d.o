@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, type TradingSession } from '@/lib/supabase/client';
 import { useTimer, formatDuration } from '@/lib/timer/context';
 import { useAuth } from '@/lib/auth/provider';
+import { markAnchorField } from '@/lib/anchors/mark-done';
 import { TradingStats } from '@/components/trading-stats';
 import { TradingHistory } from '@/components/trading-history';
+import { PageTimer } from '@/components/page-timer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -124,6 +126,7 @@ export default function TradingPage() {
       }
 
       await completeSession({ in_plan: inPlan, note: note.trim() || undefined });
+      await markAnchorField('trading_in_plan', inPlan);
       setInPlan(null);
       setNote('');
       clearScreenshot();
@@ -138,11 +141,14 @@ export default function TradingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Trading</h1>
-        <p className="text-sm text-muted-foreground">
-          Discipline tracking only — no forecasting, no P&amp;L. Just whether you stayed in plan.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Trading</h1>
+          <p className="text-sm text-muted-foreground">
+            Discipline tracking only — no forecasting, no P&amp;L. Just whether you stayed in plan.
+          </p>
+        </div>
+        <PageTimer kind="trading" onCompleted={fetchSessions} />
       </div>
 
       {error && (

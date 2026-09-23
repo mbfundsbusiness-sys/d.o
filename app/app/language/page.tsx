@@ -10,6 +10,7 @@ import { LanguageLearningPath } from '@/components/language-learning-path';
 import { ModuleDetail } from '@/components/language-module-detail';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageTimer } from '@/components/page-timer';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -217,6 +218,13 @@ export default function LanguagePage() {
             AI-powered tutor with personalised curriculum, adaptive modules, and tutor chat.
           </p>
         </div>
+        {selectedLanguage && (
+          <PageTimer
+            kind="language"
+            startOpts={{ language: selectedLanguage, activity_type: 'vocabulary' }}
+            onCompleted={fetchAll}
+          />
+        )}
       </div>
 
       {error && (

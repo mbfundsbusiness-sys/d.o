@@ -10,6 +10,7 @@ import { GymPRTracker } from '@/components/gym-pr-tracker';
 import { GymManualPlanDialog } from '@/components/gym-manual-plan-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageTimer } from '@/components/page-timer';
 import { Loader2, Sparkles, Dumbbell, PenLine } from 'lucide-react';
 
 export default function GymPage() {
@@ -107,11 +108,14 @@ export default function GymPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Gym</h1>
-        <p className="text-sm text-muted-foreground">
-          AI trainer with a personalised weekly plan that adapts to how recovery actually goes.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Gym</h1>
+          <p className="text-sm text-muted-foreground">
+            AI trainer with a personalised weekly plan that adapts to how recovery actually goes.
+          </p>
+        </div>
+        <PageTimer kind="gym" onCompleted={fetchAll} />
       </div>
 
       {error && (

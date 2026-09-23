@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase, type BotCouncilCheck, type BotCouncilCheckStatus, type BotCouncilTask } from '@/lib/supabase/client';
+import { markAnchorField } from '@/lib/anchors/mark-done';
 import { BotCouncilTasks } from '@/components/botcouncil-tasks';
 import { BotCouncilHistory } from '@/components/botcouncil-history';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Flame, CheckCircle2, AlertTriangle, ListChecks } from 'lucide-react';
+import { Loader2, Flame, CheckCircle2, AlertTriangle, ListChecks, Zap } from 'lucide-react';
 
 export default function BotCouncilPage() {
   const [checks, setChecks] = useState<BotCouncilCheck[]>([]);
@@ -19,6 +20,7 @@ export default function BotCouncilPage() {
   const [status, setStatus] = useState<BotCouncilCheckStatus>('healthy');
   const [note, setNote] = useState('');
   const [logging, setLogging] = useState(false);
+  const [quickLogging, setQuickLogging] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -57,6 +59,20 @@ export default function BotCouncilPage() {
     }
     setNote('');
     setStatus('healthy');
+    await markAnchorField('botcouncil_checked', true);
+    fetchAll();
+  }
+
+  async function handleQuickLog() {
+    setQuickLogging(true);
+    setError(null);
+    const { error } = await supabase.from('botcouncil_checks').insert({ status: 'healthy', note: null });
+    setQuickLogging(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    await markAnchorField('botcouncil_checked', true);
     fetchAll();
   }
 
@@ -66,11 +82,18 @@ export default function BotCouncilPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">BotCouncil</h1>
-        <p className="text-sm text-muted-foreground">
-          Light maintenance tracking — health checks and a running task list, separate from your daily anchors.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">BotCouncil</h1>
+          <p className="text-sm text-muted-foreground">
+            Light maintenance tracking — health checks and a running task list. Logging a check
+            marks today's BotCouncil anchor done.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={handleQuickLog} disabled={quickLogging}>
+          {quickLogging ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
+          Quick log (healthy)
+        </Button>
       </div>
 
       {error && (

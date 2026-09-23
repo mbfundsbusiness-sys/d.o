@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type GymPlan } from '@/lib/supabase/client';
 import { useTimer, formatDuration } from '@/lib/timer/context';
+import { markAnchorField } from '@/lib/anchors/mark-done';
 import { GymCheckinDialog } from '@/components/gym-checkin-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,6 +60,7 @@ export function GymWeekDetail({ plan, isLatest, onBack, onWeekCompleted }: GymWe
     setError(null);
     try {
       await completeSession({});
+      await markAnchorField('gym_done', true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to complete session');
     }

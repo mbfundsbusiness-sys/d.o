@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Compass, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { ActivityTimerWidget } from '@/components/activity-timer-widget';
 import { ScheduleAlertBanner } from '@/components/schedule-alert-banner';
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { NAV_ITEMS, ALWAYS_VISIBLE_HREFS } from '@/lib/nav-items';
@@ -73,8 +72,6 @@ export function AppShell({
             </div>
           )}
         </div>
-
-        {!collapsed && <ActivityTimerWidget />}
 
         <nav className="flex-1 space-y-1 px-3 py-2">
           {visibleNavItems.map((item) => {

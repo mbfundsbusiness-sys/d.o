@@ -22,9 +22,15 @@ export type AnchorLog = {
   wake_time: string | null;
   applications_sent: number;
   trading_in_plan: boolean;
+  botcouncil_checked: boolean;
+  reading_done: boolean;
+  gym_done: boolean;
+  language_done: boolean;
   note: string | null;
   created_at: string;
 };
+
+export type AnchorBooleanField = 'trading_in_plan' | 'botcouncil_checked' | 'reading_done' | 'gym_done' | 'language_done';
 
 export type JobApplicationStatus =
   | 'researching'

@@ -13,6 +13,7 @@ import { SpeakButton } from '@/components/speak-button';
 import { LanguageLessonPlayer } from '@/components/language-lesson-player';
 import { DeleteButton } from '@/components/delete-button';
 import { masteryLabel } from '@/lib/language/mastery';
+import { markAnchorField } from '@/lib/anchors/mark-done';
 import { formatDateUK } from '@/lib/utils/dates';
 
 type ModuleDetailProps = {
@@ -108,6 +109,7 @@ export function ModuleDetail({ module, onBack, onModuleCompleted, onReviewed }: 
       if (isThisModuleRunning) {
         await completeSession();
       }
+      await markAnchorField('language_done', true);
 
       // Mark module as completed
       const { error: updateError } = await supabase

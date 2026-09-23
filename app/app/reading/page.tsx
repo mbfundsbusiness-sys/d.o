@@ -8,6 +8,7 @@ import { ReadingSessionForm } from '@/components/reading-session-form';
 import { ReadingHighlights } from '@/components/reading-highlights';
 import { ReadingHistory } from '@/components/reading-history';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageTimer } from '@/components/page-timer';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function ReadingPage() {
@@ -52,11 +53,14 @@ export default function ReadingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Reading</h1>
-        <p className="text-sm text-muted-foreground">
-          Track what you&apos;re reading and log sessions with the universal timer.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Reading</h1>
+          <p className="text-sm text-muted-foreground">
+            Track what you&apos;re reading and log sessions with the universal timer.
+          </p>
+        </div>
+        <PageTimer kind="reading" onCompleted={fetchAll} />
       </div>
 
       {error && (
