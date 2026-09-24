@@ -88,7 +88,7 @@ export type JobApplicationUpdate = {
 
 // --- Activity session types ---
 
-export type ActivityKind = 'trading' | 'gym' | 'language' | 'job_search' | 'reading' | 'course';
+export type ActivityKind = 'trading' | 'gym' | 'language' | 'job_search' | 'reading' | 'course' | 'botcouncil';
 
 export type LanguageActivityType =
   | 'vocabulary'

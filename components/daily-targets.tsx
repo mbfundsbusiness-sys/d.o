@@ -45,18 +45,14 @@ export function DailyTargets({ blocks }: { blocks: ScheduleBlock[] }) {
         const { data } = await supabase.from(table).select('duration_min').gte('started_at', dayStart);
         return (data ?? []).reduce((s: number, r: { duration_min: number | null }) => s + Number(r.duration_min ?? 0), 0);
       };
-      const [trading, reading, language, course, anchor] = await Promise.all([
+      const [trading, botcouncil, reading, language, course] = await Promise.all([
         sum('trading_sessions'),
+        sum('botcouncil_sessions'),
         sum('reading_sessions'),
         sum('language_sessions'),
         sum('course_sessions'),
-        supabase.from('anchor_logs').select('botcouncil_checked').eq('log_date', today),
       ]);
-      const botcouncilChecked = (anchor.data ?? []).some((a: { botcouncil_checked: boolean }) => a.botcouncil_checked);
-      const botBlockMin = blocks
-        .filter((b) => b.day_of_week === londonNow().dayOfWeek && b.activity_type === 'botcouncil')
-        .reduce((s, b) => s + (minutesOfDay(b.end_time) - minutesOfDay(b.start_time)), 0);
-      setWorkDone(trading + (botcouncilChecked ? botBlockMin : 0));
+      setWorkDone(trading + botcouncil);
       setLearningDone(reading + language + course);
     })();
   }, [blocks]);
@@ -76,7 +72,7 @@ export function DailyTargets({ blocks }: { blocks: ScheduleBlock[] }) {
         <Bar label="Work" done={workDone} planned={planned(WORK_TYPES)} target={WORK_TARGET_MIN} />
         <Bar label="Learning" done={learningDone} planned={planned(LEARNING_TYPES)} target={LEARNING_TARGET_MIN} />
         <p className="text-xs text-muted-foreground">
-          Work = trading timer sessions + BotCouncil block (counted once a check is logged). Learning = reading,
+          Work = trading + BotCouncil timer sessions. Learning = reading,
           language and course timer sessions.
         </p>
       </CardContent>

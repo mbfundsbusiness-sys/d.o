@@ -9,6 +9,7 @@ const KIND_TO_ANCHOR_FIELD: Partial<Record<ActivityKind, AnchorBooleanField>> = 
   reading: 'reading_done',
   gym: 'gym_done',
   language: 'language_done',
+  botcouncil: 'botcouncil_checked',
 };
 
 export function anchorFieldForKind(kind: ActivityKind): AnchorBooleanField | null {

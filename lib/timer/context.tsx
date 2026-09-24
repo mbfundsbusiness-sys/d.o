@@ -50,6 +50,7 @@ const TABLE_MAP: Record<ActivityKind, string> = {
   job_search: 'job_search_sessions',
   reading: 'reading_sessions',
   course: 'course_sessions',
+  botcouncil: 'botcouncil_sessions',
 };
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
@@ -65,7 +66,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Check all four tables for an open session (ended_at IS NULL)
-    const kinds: ActivityKind[] = ['trading', 'gym', 'language', 'job_search', 'reading', 'course'];
+    const kinds: ActivityKind[] = ['trading', 'gym', 'language', 'job_search', 'reading', 'course', 'botcouncil'];
     for (const kind of kinds) {
       const table = TABLE_MAP[kind];
       const { data, error } = await supabase
@@ -221,4 +222,5 @@ export const ACTIVITY_LABELS: Record<ActivityKind, string> = {
   job_search: 'Job Search',
   reading: 'Reading',
   course: 'Course',
+  botcouncil: 'BotCouncil',
 };

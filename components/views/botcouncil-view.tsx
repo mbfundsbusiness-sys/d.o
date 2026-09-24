@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase, type BotCouncilCheck, type BotCouncilCheckStatus, type BotCouncilTask } from '@/lib/supabase/client';
+import { PageTimer } from '@/components/page-timer';
 import { markAnchorField } from '@/lib/anchors/mark-done';
 import { BotCouncilTasks } from '@/components/botcouncil-tasks';
 import { BotCouncilHistory } from '@/components/botcouncil-history';
@@ -90,10 +91,13 @@ export default function BotCouncilView() {
             marks today's BotCouncil anchor done.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <PageTimer kind="botcouncil" onCompleted={fetchAll} />
         <Button size="sm" variant="outline" onClick={handleQuickLog} disabled={quickLogging}>
           {quickLogging ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
           Quick log (healthy)
         </Button>
+        </div>
       </div>
 
       {error && (
