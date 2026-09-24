@@ -7,7 +7,7 @@ import { computeSavingsBalance } from '@/lib/finance/savings';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Gift, Wallet, PiggyBank } from 'lucide-react';
 
-export default function WishlistPage() {
+export default function WishlistView() {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [financeEntries, setFinanceEntries] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);

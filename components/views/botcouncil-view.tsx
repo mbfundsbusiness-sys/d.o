@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Flame, CheckCircle2, AlertTriangle, ListChecks, Zap } from 'lucide-react';
 
-export default function BotCouncilPage() {
+export default function BotCouncilView() {
   const [checks, setChecks] = useState<BotCouncilCheck[]>([]);
   const [tasks, setTasks] = useState<BotCouncilTask[]>([]);
   const [loading, setLoading] = useState(true);

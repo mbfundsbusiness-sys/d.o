@@ -25,7 +25,7 @@ import { formatDateUK } from '@/lib/utils/dates';
 
 const COMMON_LANGUAGES = ['Spanish', 'French', 'German', 'Arabic', 'Japanese', 'Mandarin', 'Italian', 'Portuguese'];
 
-export default function LanguagePage() {
+export default function LanguageView() {
   const [sessions, setSessions] = useState<LanguageSession[]>([]);
   const [assessments, setAssessments] = useState<LanguageAssessment[]>([]);
   const [modules, setModules] = useState<LanguageModule[]>([]);

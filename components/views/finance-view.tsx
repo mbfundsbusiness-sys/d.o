@@ -19,7 +19,7 @@ import { DeleteButton } from '@/components/delete-button';
 import { todayISO, formatDateUK } from '@/lib/utils/dates';
 import { computeSavingsBalance, SAVINGS_CATEGORY } from '@/lib/finance/savings';
 
-export default function FinancePage() {
+export default function FinanceView() {
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

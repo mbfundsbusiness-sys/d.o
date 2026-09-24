@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { PageTimer } from '@/components/page-timer';
 import { Loader2, Sparkles, Dumbbell, PenLine } from 'lucide-react';
 
-export default function GymPage() {
+export default function GymView() {
   const [sessions, setSessions] = useState<GymSession[]>([]);
   const [assessment, setAssessment] = useState<GymAssessment | null>(null);
   const [plans, setPlans] = useState<GymPlan[]>([]);

@@ -16,7 +16,7 @@ import { Loader2, Play, Square, ImagePlus, X } from 'lucide-react';
 
 const SCREENSHOT_BUCKET = 'trading-screenshots';
 
-export default function TradingPage() {
+export default function TradingView() {
   const { running, startSession, completeSession } = useTimer();
   const { user } = useAuth();
   const [sessions, setSessions] = useState<TradingSession[]>([]);
