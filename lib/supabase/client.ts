@@ -506,6 +506,7 @@ export type RecurringCommitment = {
   preferred_start_time: string | null;
   priority: number;
   active: boolean;
+  fixed: boolean;
   created_at: string;
   updated_at: string;
 };

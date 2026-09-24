@@ -9,8 +9,8 @@ import { ScheduleWeekGrid } from '@/components/schedule-week-grid';
 import { RecurringCommitmentsEditor } from '@/components/recurring-commitments-editor';
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { buildScheduleIcs, downloadIcs } from '@/lib/schedule/ics';
-import { regenerateAutoBlocksForDay } from '@/lib/schedule/auto-scheduler';
-import { londonNow } from '@/lib/utils/dates';
+import { regenerateAutoBlocksForDays } from '@/lib/schedule/auto-scheduler';
+import { DailyTargets } from '@/components/daily-targets';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, CalendarPlus, List, LayoutGrid, RefreshCw } from 'lucide-react';
@@ -66,13 +66,12 @@ export default function SchedulePage() {
     fetchBlocks();
   }, [fetchBlocks]);
 
-  async function handleRegenerateToday() {
+  async function handleRegenerateWeek() {
     if (!user) return;
     setRegenerating(true);
     setError(null);
     try {
-      const dow = londonNow().dayOfWeek;
-      await regenerateAutoBlocksForDay(supabase, user.id, dow);
+      await regenerateAutoBlocksForDays(supabase, user.id, [0, 1, 2, 3, 4, 5, 6]);
       await fetchBlocks();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to regenerate schedule');
@@ -127,13 +126,13 @@ export default function SchedulePage() {
               Graph
             </button>
           </div>
-          <Button variant="outline" size="sm" onClick={handleRegenerateToday} disabled={regenerating}>
+          <Button variant="outline" size="sm" onClick={handleRegenerateWeek} disabled={regenerating}>
             {regenerating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
             )}
-            Regenerate today
+            Regenerate week
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportIcs} disabled={blocks.length === 0}>
             <CalendarPlus className="mr-2 h-4 w-4" />
@@ -147,6 +146,8 @@ export default function SchedulePage() {
           <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
         </Card>
       )}
+
+      <DailyTargets blocks={blocks} />
 
       <ScheduleToday blocks={blocks} settings={settings} />
 

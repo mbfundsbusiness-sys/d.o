@@ -87,10 +87,17 @@ export async function regenerateAutoBlocksForDay(
   const result: SchedulerResult = { placed: [], skipped: [] };
   const inserts: Record<string, unknown>[] = [];
 
-  for (const commitment of commitments) {
+  // Fixed commitments go first and are pinned to their start time even if
+  // they overlap prayer or manual blocks; everything else routes around them.
+  const ordered = [...commitments].sort((a, b) => Number(!!b.fixed) - Number(!!a.fixed));
+
+  for (const commitment of ordered) {
     let slot: Window | null = null;
 
-    if (commitment.preferred_start_time) {
+    if (commitment.fixed && commitment.preferred_start_time) {
+      const startMin = minutesOfDay(commitment.preferred_start_time);
+      slot = { startMin, endMin: startMin + commitment.target_duration_min };
+    } else if (commitment.preferred_start_time) {
       const startMin = minutesOfDay(commitment.preferred_start_time);
       const candidate: Window = { startMin, endMin: startMin + commitment.target_duration_min };
       if (!occupied.some((w) => overlaps(candidate, w)) && candidate.endMin <= DAY_WINDOW_END) {
