@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Iridescence from '@/components/iridescence';
 import { Compass, Loader2, Lock, Mail } from 'lucide-react';
 
 export default function LoginPage() {
@@ -42,7 +43,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="relative flex min-h-screen items-center justify-center p-4">
+      <div className="pointer-events-none fixed inset-0 -z-10 opacity-40">
+        <Iridescence color={[0.5, 0.5, 0.5]} speed={0.6} amplitude={0.1} mouseReact={false} />
+      </div>
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center space-y-3 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
