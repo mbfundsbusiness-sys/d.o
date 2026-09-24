@@ -23,7 +23,7 @@ export const ROADMAP_PHASES: RoadmapPhase[] = [
     description:
       'Establish daily rhythm, stabilise sleep, set up the tracking habit, and prepare application materials. No capital deployment yet — just structure.',
     goals: [
-      'Consistent wake time before 07:30',
+      'Consistent wake time at 9:00am',
       'Daily anchor logging becomes automatic',
       'CV and cover letter template ready',
       'Trading plan documented and reviewed daily',

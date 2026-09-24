@@ -9,6 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, Circle, Lock, Loader2, Flame, Wallet, TrendingUp, Moon, Dumbbell, CandlestickChart, Bot } from 'lucide-react';
 import { formatDateUK } from '@/lib/utils/dates';
+import { useUserSettings } from '@/lib/settings/use-user-settings';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Briefcase, Pencil } from 'lucide-react';
 
 type RollupData = {
   // Finance
@@ -69,6 +73,59 @@ const PHASE_METRICS: Record<string, { key: keyof RollupData; label: string; form
     { key: 'gymSessionsThisWeek', label: 'Gym sessions', format: (v) => `${v}`, icon: Dumbbell },
   ],
 };
+
+function EmploymentStatus() {
+  const { settings, save } = useUserSettings();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const value = settings?.employment_status ?? '';
+
+  async function commit() {
+    const next = draft.trim();
+    if (!next) return;
+    setError(null);
+    try {
+      await save({ employment_status: next });
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save');
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex flex-wrap items-center gap-3 py-4">
+        <Briefcase className="h-4 w-4 text-muted-foreground" />
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Current status
+        </span>
+        {editing ? (
+          <>
+            <Input value={draft} onChange={(e) => setDraft(e.target.value)} className="h-8 max-w-xs" autoFocus />
+            <Button size="sm" onClick={commit}>Save</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+          </>
+        ) : (
+          <>
+            <span className="text-sm font-medium">{value || '—'}</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { setDraft(value); setEditing(true); }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
+        {error && <span className="text-xs text-destructive">{error}</span>}
+        <span className="basis-full text-xs text-muted-foreground">
+          Informational only — Search Sprint stays open until the target role is secured.
+        </span>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function RoadmapPage() {
   const [rollup, setRollup] = useState<RollupData>(EMPTY_ROLLUP);
@@ -162,6 +219,8 @@ export default function RoadmapPage() {
           Four phases from zero to compounding. You are in Phase 1 — Foundation.
         </p>
       </div>
+
+      <EmploymentStatus />
 
       {loading ? (
         <div className="flex items-center justify-center py-12">

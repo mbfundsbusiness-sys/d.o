@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth/provider';
 type SaveInput = Partial<
   Pick<
     UserSettings,
-    'jummah_time' | 'jummah_duration_min' | 'timezone' | 'prayer_times' | 'backdrop' | 'hidden_modules'
+    'jummah_time' | 'jummah_duration_min' | 'timezone' | 'prayer_times' | 'hidden_modules' | 'employment_status'
   >
 >;
 

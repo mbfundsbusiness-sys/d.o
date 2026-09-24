@@ -3,7 +3,7 @@ import type { RecurringCommitment, ScheduleBlock } from '@/lib/supabase/client';
 import { minutesOfDay, minutesToHM } from '@/lib/utils/dates';
 
 // The window the scheduler will place blocks within on any given day.
-const DAY_WINDOW_START = 6 * 60; // 06:00
+const DAY_WINDOW_START = 9 * 60; // 09:00 — wake time; nothing auto-scheduled before it
 const DAY_WINDOW_END = 23 * 60; // 23:00
 const GAP_STEP_MIN = 5; // granularity when scanning for an open gap
 
