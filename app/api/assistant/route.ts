@@ -3,6 +3,7 @@ import { getSupabaseServer } from '@/lib/supabase/server';
 import { callGemini, getGeminiApiKey } from '@/lib/gemini';
 import { londonNow } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
+import { extractActions, applyScheduleActions } from '@/lib/assistant/schedule-actions';
 import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
@@ -18,7 +19,17 @@ Your role:
 - If they're doing well, acknowledge it briefly and push for the next step
 - Never give financial advice or trading recommendations — focus on process discipline
 
-You have access to the last 7 days of their activity, plus their current recurring commitments, today's actual schedule, courses, and wishlist. Use it — you should be able to answer "how's my week actually going" by looking at all of it together, not just one module.`;
+You have access to the last 7 days of their activity, plus their current recurring commitments, today's actual schedule, courses, and wishlist. Use it — you should be able to answer "how's my week actually going" by looking at all of it together, not just one module.
+
+CHANGING THE SCHEDULE: you can edit the user's recurring commitments (the source of the schedule) — but ONLY when they explicitly ask for a change. Never change anything unprompted. To make changes, reply with a short natural-language confirmation of what you're changing, then append exactly one fenced block:
+
+\`\`\`actions
+[ {"op":"add","label":"...","activity_type":"trading|botcouncil|reading|custom|gym|language|course","duration_min":60,"days":[0,1,2,3,4,5,6],"start":"HH:MM","fixed":true,"priority":5},
+  {"op":"update","id":"<commitment id from the list>","start":"13:00","duration_min":90,"days":[1,2],"label":"...","fixed":false,"active":false},
+  {"op":"delete","id":"<commitment id>"} ]
+\`\`\`
+
+Rules: days are 0=Sunday..6=Saturday; times are 24h HH:MM in Europe/London; "fixed":true pins a block to its exact start even if it overlaps prayer or other blocks; use ids exactly as listed under Recurring Commitments; "update" only needs the fields that change; prayer times cannot be edited here. If the request is ambiguous (which block? which days?), ask instead of guessing. If they aren't asking for a change, emit no actions block.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -128,8 +139,8 @@ export async function POST(req: NextRequest) {
 
     if (recurringCommitments.data && recurringCommitments.data.length > 0) {
       const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      contextParts.push(`=== Recurring Commitments (active — what's supposed to happen regularly) ===\n${recurringCommitments.data.map((c: { label: string; activity_type: string; target_duration_min: number; applies_days: number[]; preferred_start_time: string | null; priority: number }) =>
-        `${c.label} (${c.activity_type}): ${c.target_duration_min}min on ${c.applies_days.map((d) => DAY_NAMES[d]).join('/')}${c.preferred_start_time ? `, preferred ${c.preferred_start_time}` : ''}, priority ${c.priority}`
+      contextParts.push(`=== Recurring Commitments (active — what's supposed to happen regularly) ===\n${recurringCommitments.data.map((c: { id: string; label: string; activity_type: string; fixed: boolean; target_duration_min: number; applies_days: number[]; preferred_start_time: string | null; priority: number }) =>
+        `[id ${c.id}] ${c.label} (${c.activity_type}): ${c.target_duration_min}min on ${c.applies_days.map((d) => DAY_NAMES[d]).join('/')}${c.preferred_start_time ? `, ${c.fixed ? 'fixed at' : 'preferred'} ${c.preferred_start_time}` : ''}, priority ${c.priority}`
       ).join('\n')}`);
     }
 
@@ -189,11 +200,19 @@ export async function POST(req: NextRequest) {
           ...historyMessages,
           { role: 'user' as const, content: userMessage },
         ],
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
       });
     } catch (err) {
       console.error('Gemini API error:', err);
       return NextResponse.json({ error: 'AI request failed' }, { status: 502 });
+    }
+
+    const extracted = extractActions(assistantContent);
+    if (extracted.actions) {
+      const results = await applyScheduleActions(supabaseServer, userId, extracted.actions);
+      assistantContent = `${extracted.text}\n\n${results.map((r) => `• ${r}`).join('\n')}`.trim();
+    } else {
+      assistantContent = extracted.text;
     }
 
     // Persist both messages
