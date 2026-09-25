@@ -32,6 +32,8 @@ type TimerContextValue = {
   completeSession: (opts?: { note?: string; in_plan?: boolean }) => Promise<void>;
   cancelSession: () => Promise<void>;
   refresh: () => Promise<void>;
+  controlKinds: ActivityKind[];
+  registerControl: (kind: ActivityKind) => () => void;
 };
 
 const TimerContext = createContext<TimerContextValue>({
@@ -41,6 +43,8 @@ const TimerContext = createContext<TimerContextValue>({
   completeSession: async () => {},
   cancelSession: async () => {},
   refresh: async () => {},
+  controlKinds: [],
+  registerControl: () => () => {},
 });
 
 const TABLE_MAP: Record<ActivityKind, string> = {
@@ -176,7 +180,9 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
     if (error) throw new Error(error.message);
     setRunning(null);
-  }, [running]);
+    // Another kind may have a stale open session hidden behind this one.
+    await checkRunning();
+  }, [running, checkRunning]);
 
   const cancelSession = useCallback(async () => {
     if (!running) return;
@@ -186,6 +192,17 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     setRunning(null);
   }, [running]);
 
+  const [controlKinds, setControlKinds] = useState<ActivityKind[]>([]);
+  const registerControl = useCallback((kind: ActivityKind) => {
+    setControlKinds((prev) => [...prev, kind]);
+    return () => {
+      setControlKinds((prev) => {
+        const i = prev.indexOf(kind);
+        return i === -1 ? prev : [...prev.slice(0, i), ...prev.slice(i + 1)];
+      });
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     await checkRunning();
@@ -193,7 +210,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <TimerContext.Provider
-      value={{ running, loading, startSession, completeSession, cancelSession, refresh }}
+      value={{ running, loading, startSession, completeSession, cancelSession, refresh, controlKinds, registerControl }}
     >
       {children}
     </TimerContext.Provider>

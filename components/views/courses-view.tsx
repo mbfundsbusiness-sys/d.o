@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase, type CourseLog } from '@/lib/supabase/client';
 import { CoursesList } from '@/components/courses-list';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageTimer } from '@/components/page-timer';
 import { Loader2 } from 'lucide-react';
 
 export default function CoursesView() {
@@ -34,11 +35,14 @@ export default function CoursesView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Courses</h1>
-        <p className="text-sm text-muted-foreground">
-          Courses you&apos;re taking elsewhere — no AI, you add and update these yourself.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Courses</h1>
+          <p className="text-sm text-muted-foreground">
+            Courses you&apos;re taking elsewhere — no AI, you add and update these yourself.
+          </p>
+        </div>
+        <PageTimer kind="course" onCompleted={fetchAll} />
       </div>
       {error && (
         <Card className="border-destructive">

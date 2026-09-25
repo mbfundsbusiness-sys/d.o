@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Compass, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { RunningTimerFallback } from '@/components/running-timer-fallback';
 import { ScheduleAlertBanner } from '@/components/schedule-alert-banner';
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { NAV_ITEMS, ALWAYS_VISIBLE_HREFS } from '@/lib/nav-items';
@@ -184,6 +185,7 @@ export function AppShell({
       <main className={cn(hydrated && 'transition-[padding] duration-200 ease-in-out', collapsed ? 'lg:pl-[4.5rem]' : 'lg:pl-60')}>
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
           <ScheduleAlertBanner />
+          <RunningTimerFallback />
           {children}
         </div>
       </main>

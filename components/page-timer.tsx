@@ -25,18 +25,25 @@ export function PageTimer({
   kind,
   startOpts,
   onCompleted,
+  global = false,
 }: {
   kind: ActivityKind;
   startOpts?: Record<string, unknown>;
   onCompleted?: () => void;
+  global?: boolean;
 }) {
-  const { running, loading, startSession, completeSession } = useTimer();
+  const { running, loading, startSession, completeSession, registerControl } = useTimer();
   const [elapsed, setElapsed] = useState(0);
   const [note, setNote] = useState('');
   const [inPlan, setInPlan] = useState<boolean | null>(null);
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (global) return;
+    return registerControl(kind);
+  }, [global, kind, registerControl]);
 
   const isThisRunning = running?.kind === kind;
   const anotherRunning = !!running && !isThisRunning;
