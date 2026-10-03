@@ -52,6 +52,7 @@
     "embla-carousel-react": "^8.3.0",
     "eslint": "8.49.0",
     "eslint-config-next": "13.5.1",
+    "framer-motion": "^14.0.0",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.446.0",
     "next": "^13.5.1",
@@ -73,6 +74,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.15.13"
+    "@netlify/plugin-nextjs": "^5.15.13",
+    "@playwright/test": "^1.63.0",
+    "playwright": "^1.63.0"
   }
 }
