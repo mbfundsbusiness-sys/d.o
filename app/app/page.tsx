@@ -1,65 +1,54 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { supabase, type AnchorLog } from '@/lib/supabase/client';
-import { AnchorForm } from '@/components/anchor-form';
-import { AnchorStats } from '@/components/anchor-stats';
-import { AnchorHistory } from '@/components/anchor-history';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AnchorsHeroCard } from '@/components/dashboard/anchors-hero-card';
+import { TimerCard } from '@/components/dashboard/timer-card';
+import { PrayerCard } from '@/components/dashboard/prayer-card';
+import { StreakHeatmapCard } from '@/components/dashboard/streak-heatmap-card';
+import { TradingDisciplineCard } from '@/components/dashboard/trading-discipline-card';
+import { FinanceSnapshotCard } from '@/components/dashboard/finance-snapshot-card';
+import { GymCard } from '@/components/dashboard/gym-card';
+import { LanguageCard } from '@/components/dashboard/language-card';
+import { BotCouncilCard } from '@/components/dashboard/botcouncil-card';
 
-export default function TodayPage() {
-  const [logs, setLogs] = useState<AnchorLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error } = await supabase
-      .from('anchor_logs')
-      .select('*')
-      .order('log_date', { ascending: false })
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setLogs(data ?? []);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
-
+export default function DashboardPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
-        <p className="text-sm text-muted-foreground">
-          Log your daily anchors. Every entry is a timestamped record — nothing resets silently.
-        </p>
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12"
+    >
+      <div className="order-1 lg:order-none lg:col-span-6">
+        <AnchorsHeroCard />
+      </div>
+      <div className="order-2 lg:order-none lg:col-span-3">
+        <TimerCard />
+      </div>
+      <div className="order-3 lg:order-none lg:col-span-3">
+        <PrayerCard />
       </div>
 
-      {error && (
-        <Card className="border-destructive">
-          <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
-        </Card>
-      )}
+      <div className="order-5 lg:order-none lg:col-span-8">
+        <StreakHeatmapCard />
+      </div>
+      <div className="order-4 lg:order-none lg:col-span-4">
+        <TradingDisciplineCard />
+      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <>
-          <AnchorStats logs={logs} />
-          <AnchorForm onLogged={fetchLogs} />
-          <AnchorHistory logs={logs} onChanged={fetchLogs} />
-        </>
-      )}
-    </div>
+      <div className="order-8 lg:order-none lg:col-span-4">
+        <FinanceSnapshotCard />
+      </div>
+      <div className="order-6 lg:order-none lg:col-span-4">
+        <GymCard />
+      </div>
+      <div className="order-7 lg:order-none lg:col-span-4">
+        <LanguageCard />
+      </div>
+
+      <div className="order-9 lg:order-none lg:col-span-12">
+        <BotCouncilCard />
+      </div>
+    </motion.div>
   );
 }
