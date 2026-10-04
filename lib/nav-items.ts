@@ -11,7 +11,6 @@ import {
   Settings,
   ListTodo,
   Flame,
-  Send,
   Timer,
 } from 'lucide-react';
 
@@ -24,7 +23,6 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: '/app', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/app/anchors', label: 'Daily Anchors', icon: Flame },
-  { href: '/app/jobs', label: 'Job Pipeline', icon: Send },
   { href: '/app/working', label: 'Working', icon: Briefcase },
   { href: '/app/learning', label: 'Learning', icon: GraduationCap },
   { href: '/app/invest', label: 'Invest', icon: TrendingUp },
@@ -43,4 +41,4 @@ export const ALWAYS_VISIBLE_HREFS = ['/app', '/app/settings'];
 
 // The 4 items that get their own slot in the mobile bottom tab bar;
 // everything else (including Settings) lives behind "More".
-export const MOBILE_PRIMARY_HREFS = ['/app', '/app/anchors', '/app/working', '/app/jobs'];
+export const MOBILE_PRIMARY_HREFS = ['/app', '/app/anchors', '/app/working', '/app/todo'];

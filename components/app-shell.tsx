@@ -13,6 +13,8 @@ import {
   Bell,
   Sparkles,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { RunningTimerFallback } from '@/components/running-timer-fallback';
@@ -28,6 +30,8 @@ function greeting(hour: number): string {
   return 'Good evening';
 }
 
+const RAIL_EXPANDED_KEY = 'rail-expanded';
+
 export function AppShell({
   children,
   currentPath,
@@ -41,8 +45,30 @@ export function AppShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    try {
+      setExpanded(localStorage.getItem(RAIL_EXPANDED_KEY) === '1');
+    } catch {
+      // localStorage unavailable — keep default collapsed
+    }
+    setHydrated(true);
+  }, []);
+
+  function toggleExpanded() {
+    setExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(RAIL_EXPANDED_KEY, next ? '1' : '0');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
 
   const hidden = new Set(settings?.hidden_modules ?? []);
   const visibleNavItems = NAV_ITEMS.filter(
@@ -62,17 +88,23 @@ export function AppShell({
 
   return (
     <div className="relative min-h-screen">
-      {/* Desktop icon rail */}
-      <aside className="glass-panel fixed left-0 top-0 z-40 hidden h-screen w-16 flex-col items-center py-4 lg:flex">
+      {/* Desktop icon rail — collapsed (icons only, hover tooltips) or expanded (icons + labels) */}
+      <aside
+        className={cn(
+          'glass-panel fixed left-0 top-0 z-40 hidden h-screen flex-col py-4 lg:flex',
+          hydrated && 'transition-[width] duration-200 ease-in-out',
+          expanded ? 'w-56 items-stretch px-3' : 'w-16 items-center'
+        )}
+      >
         <Link
           href="/app"
-          className="mb-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary"
+          className={cn('mb-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary', expanded && 'ml-0')}
           aria-label="Dashboard"
         >
           <Compass className="h-5 w-5 text-primary-foreground" />
         </Link>
 
-        <nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto py-1" aria-label="Main">
+        <nav className={cn('flex flex-1 flex-col gap-1 overflow-y-auto py-1', !expanded && 'items-center')} aria-label="Main">
           {visibleNavItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
@@ -81,32 +113,62 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 aria-label={item.label}
-                title={item.label}
+                title={expanded ? undefined : item.label}
                 className={cn(
-                  'group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'group relative flex h-10 shrink-0 items-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  expanded ? 'w-full gap-3 px-3' : 'w-10 justify-center',
                   active ? 'bg-white/[0.1] text-foreground' : 'text-muted-foreground hover:bg-white/[0.05] hover:text-foreground'
                 )}
               >
-                <Icon className="h-4.5 w-4.5" />
-                {active && <span className="absolute left-0 h-5 w-0.5 -translate-x-[calc(100%+2px)] rounded-full bg-foreground" />}
-                <span
-                  role="tooltip"
-                  className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-md bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                >
-                  {item.label}
-                </span>
+                <Icon className="h-4.5 w-4.5 shrink-0" />
+                {expanded && <span className="truncate text-sm font-medium">{item.label}</span>}
+                {active && (
+                  <span
+                    className={cn(
+                      'absolute h-5 w-0.5 rounded-full bg-foreground',
+                      expanded ? 'left-0' : 'left-0 -translate-x-[calc(100%+2px)]'
+                    )}
+                  />
+                )}
+                {!expanded && (
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-md bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                  >
+                    {item.label}
+                  </span>
+                )}
               </Link>
             );
           })}
         </nav>
 
-        <Button variant="ghost" size="icon" title="Sign out" aria-label="Sign out" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+        <Button
+          variant="ghost"
+          size="sm"
+          title={expanded ? undefined : 'Expand sidebar'}
+          aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          className={cn('mb-1 text-muted-foreground hover:text-foreground', expanded ? 'w-full justify-start' : 'justify-center px-0')}
+          onClick={toggleExpanded}
+        >
+          {expanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          {expanded && <span className="ml-2">Collapse</span>}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          title={expanded ? undefined : 'Sign out'}
+          aria-label="Sign out"
+          onClick={signOut}
+          className={cn('text-muted-foreground hover:text-foreground', expanded ? 'w-full justify-start' : 'justify-center px-0')}
+        >
           <LogOut className="h-4 w-4" />
+          {expanded && <span className="ml-2">Sign out</span>}
         </Button>
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-16">
+      <div className={cn(hydrated && 'transition-[padding] duration-200 ease-in-out', expanded ? 'lg:pl-56' : 'lg:pl-16')}>
         {/* Header */}
         <header className="glass-panel sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 lg:hidden">
