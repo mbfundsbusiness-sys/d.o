@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { londonNow } from '@/lib/utils/dates';
+import { blockKind, BLOCK_LOOK } from '@/lib/schedule/colors';
+import { cn } from '@/lib/utils';
 import { effectiveBlocksForDay, needsJummahTime, type EffectiveBlock } from '@/lib/schedule/effective';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -79,10 +81,11 @@ function NowNext({
 }) {
   return (
     <div
-      className={
-        'rounded-lg border p-3 ' +
-        (emphasis && block ? 'border-2 border-foreground bg-white/[0.06]' : 'border-border')
-      }
+      className={cn(
+        'rounded-lg border p-3',
+        block ? BLOCK_LOOK[blockKind(block)].chip : 'border-border',
+        emphasis && block && 'border-2'
+      )}
     >
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
       {block ? (

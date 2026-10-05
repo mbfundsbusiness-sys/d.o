@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select';
 import { Plus, Trash2, Loader2, Sparkles } from 'lucide-react';
 import { fmtHM } from '@/lib/utils/dates';
+import { blockKind, BLOCK_LOOK } from '@/lib/schedule/colors';
+import { cn } from '@/lib/utils';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
 
 const DAYS: { dow: number; name: string }[] = [
@@ -118,10 +120,13 @@ export function ScheduleWeekEditor({
               {autoBlocks.map((b) => (
                 <div
                   key={b.id}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground"
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg border border-dashed p-3 text-xs',
+                    BLOCK_LOOK[blockKind(b)].chip
+                  )}
                 >
                   <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                  <span className="font-medium text-foreground">{b.label}</span>
+                  <span className="font-medium">{b.label}</span>
                   <span className="capitalize">({b.activity_type})</span>
                   <span className="tabular-nums">{fmtHM(b.start_time)}–{fmtHM(b.end_time)}</span>
                   <span className="flex-1" />
@@ -139,7 +144,10 @@ export function ScheduleWeekEditor({
               {dayBlocks.map((b) => (
                 <div
                   key={b.id}
-                  className="grid grid-cols-1 gap-2 rounded-lg border border-border p-3 sm:grid-cols-[8rem_6rem_6rem_1fr_auto] sm:items-center"
+                  className={cn(
+                    'grid grid-cols-1 gap-2 rounded-lg border p-3 sm:grid-cols-[8rem_6rem_6rem_1fr_auto] sm:items-center',
+                    BLOCK_LOOK[blockKind(b)].chip
+                  )}
                 >
                   <Select
                     value={b.activity_type}
