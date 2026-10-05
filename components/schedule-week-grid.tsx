@@ -3,6 +3,7 @@
 import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { effectiveBlocksForDay, type EffectiveBlock } from '@/lib/schedule/effective';
+import { blockKind, BLOCK_LOOK } from '@/lib/schedule/colors';
 import { cn } from '@/lib/utils';
 
 const DAYS: { dow: number; label: string }[] = [
@@ -14,13 +15,6 @@ const DAYS: { dow: number; label: string }[] = [
   { dow: 6, label: 'Sat' },
   { dow: 0, label: 'Sun' },
 ];
-
-const ACTIVITY_STYLE: Record<string, string> = {
-  trading: 'bg-foreground/80 text-background',
-  botcouncil: 'bg-foreground/55 text-background',
-  reading: 'bg-foreground/35 text-foreground',
-  custom: 'border-2 border-foreground bg-foreground/10 text-foreground',
-};
 
 const PIXELS_PER_HOUR = 48;
 
@@ -96,10 +90,10 @@ export function ScheduleWeekGrid({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
-          {Object.entries(ACTIVITY_STYLE).map(([type, cls]) => (
-            <span key={type} className="flex items-center gap-1.5 capitalize">
-              <span className={cn('inline-block h-3 w-3 rounded-sm', cls.split(' ')[0])} />
-              {type === 'botcouncil' ? 'BotCouncil' : type}
+          {Object.values(BLOCK_LOOK).map((look) => (
+            <span key={look.label} className="flex items-center gap-1.5">
+              <span className={cn('inline-block h-3 w-3 rounded-sm', look.dot)} />
+              {look.label}
             </span>
           ))}
         </div>
@@ -112,8 +106,8 @@ function GridBlock({ block, top, height }: { block: EffectiveBlock; top: number;
   return (
     <div
       className={cn(
-        'absolute inset-x-0.5 overflow-hidden rounded-md px-1.5 py-1 text-[10px] leading-tight',
-        ACTIVITY_STYLE[block.activity_type] ?? ACTIVITY_STYLE.custom
+        'absolute inset-x-0.5 overflow-hidden rounded-md border px-1.5 py-1 text-[10px] leading-tight',
+        BLOCK_LOOK[blockKind(block)].chip
       )}
       style={{ top, height }}
       title={`${block.label} · ${block.start_time}–${block.end_time}`}

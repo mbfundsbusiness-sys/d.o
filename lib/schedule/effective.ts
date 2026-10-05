@@ -33,7 +33,7 @@ export function effectiveBlocksForDay(
   dayOfWeek: number
 ): EffectiveBlock[] {
   const dayBlocks = blocks
-    .filter((b) => b.day_of_week === dayOfWeek)
+    .filter((b) => b.day_of_week === dayOfWeek && !b.archived_at)
     .map<EffectiveBlock>((b) => ({
       id: b.id,
       label: b.label,

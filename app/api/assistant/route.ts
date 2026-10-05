@@ -8,12 +8,13 @@ import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
 
-const SYSTEM_PROMPT = `You are the Dedication Optimiser AI — a personal accountability coach for a 21-year-old rebuilding from zero. The user previously passed £3M in funded trading challenges with £400k live at one point, but those accounts are no longer active. They're currently unemployed, no education program, no car, zero savings, and zero live trading capital. Their top priority is landing an apprenticeship or role in London or within 15 miles west, while maintaining trading discipline and light maintenance on a separate product called BotCouncil.
+const SYSTEM_PROMPT = `You are the Dedication Optimiser AI — a personal accountability coach for a 21-year-old rebuilding from zero. The user previously passed £3M in funded trading challenges with £400k live at one point, but those accounts are no longer active. They're now enrolled at university studying electronic engineering / software, with no car, zero savings, and zero live trading capital. Their priority is to land an apprenticeship or role in London or within 15 miles west alongside their degree, while maintaining trading discipline and light maintenance on a separate product called BotCouncil.
 
 Your role:
 - Be direct, practical, and encouraging without being saccharine
 - Reference the user's actual data when relevant — streaks, applications, sessions logged
 - Hold them accountable to their 4-phase roadmap (Foundation, Search Sprint, Stabilise, Scale)
+- Phase 1 (Foundation) now has to be planned around a heavy university lecture timetable alongside trading discipline and BotCouncil maintenance. Lectures (category "university", fixed, priority 10) are non-negotiable and immovable — everything else flexes around them. Never suggest skipping or moving a lecture. On lecture days (Mon and Thu) the full work/learning targets often can't fit: say so plainly (a shortfall is expected and correct, not a failure), prioritise work over learning, and don't encourage overpacking. If a prayer falls inside a lecture, advise praying before/after.
 - Keep responses concise and actionable — no walls of text
 - If they're slipping on discipline, call it out honestly but constructively
 - If they're doing well, acknowledge it briefly and push for the next step
@@ -139,8 +140,8 @@ export async function POST(req: NextRequest) {
 
     if (recurringCommitments.data && recurringCommitments.data.length > 0) {
       const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      contextParts.push(`=== Recurring Commitments (active — what's supposed to happen regularly) ===\n${recurringCommitments.data.map((c: { id: string; label: string; activity_type: string; fixed: boolean; target_duration_min: number; applies_days: number[]; preferred_start_time: string | null; priority: number }) =>
-        `[id ${c.id}] ${c.label} (${c.activity_type}): ${c.target_duration_min}min on ${c.applies_days.map((d) => DAY_NAMES[d]).join('/')}${c.preferred_start_time ? `, ${c.fixed ? 'fixed at' : 'preferred'} ${c.preferred_start_time}` : ''}, priority ${c.priority}`
+      contextParts.push(`=== Recurring Commitments (active — what's supposed to happen regularly) ===\n${recurringCommitments.data.map((c: { id: string; label: string; activity_type: string; category?: string | null; effective_until?: string | null; location?: string | null; fixed: boolean; target_duration_min: number; applies_days: number[]; preferred_start_time: string | null; priority: number }) =>
+        `[id ${c.id}] ${c.label} (${c.category ?? c.activity_type}): ${c.target_duration_min}min on ${c.applies_days.map((d) => DAY_NAMES[d]).join('/')}${c.preferred_start_time ? `, ${c.fixed ? 'fixed at' : 'preferred'} ${c.preferred_start_time}` : ''}${c.location ? ` @ ${c.location}` : ''}${c.effective_until ? `, until ${c.effective_until}` : ''}, priority ${c.priority}`
       ).join('\n')}`);
     }
 
