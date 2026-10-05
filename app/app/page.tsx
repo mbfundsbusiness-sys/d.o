@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { AnchorsHeroCard } from '@/components/dashboard/anchors-hero-card';
 import { TimerCard } from '@/components/dashboard/timer-card';
 import { PrayerCard } from '@/components/dashboard/prayer-card';
-import { StreakHeatmapCard } from '@/components/dashboard/streak-heatmap-card';
+import { ScheduleCard } from '@/components/dashboard/schedule-card';
 import { TradingDisciplineCard } from '@/components/dashboard/trading-discipline-card';
 import { FinanceSnapshotCard } from '@/components/dashboard/finance-snapshot-card';
 import { GymCard } from '@/components/dashboard/gym-card';
@@ -30,7 +30,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="order-5 lg:order-none lg:col-span-8">
-        <StreakHeatmapCard />
+        <ScheduleCard />
       </div>
       <div className="order-4 lg:order-none lg:col-span-4">
         <TradingDisciplineCard />

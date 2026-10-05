@@ -10,6 +10,7 @@ import { RecurringCommitmentsEditor } from '@/components/recurring-commitments-e
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { buildScheduleIcs, downloadIcs } from '@/lib/schedule/ics';
 import { regenerateAutoBlocksForDays } from '@/lib/schedule/auto-scheduler';
+import { ScheduleInsights } from '@/components/schedule-insights';
 import { DailyTargets } from '@/components/daily-targets';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,7 +58,7 @@ export default function SchedulePage() {
       supabase.from('recurring_commitments').select('*').order('priority', { ascending: false }),
     ]);
     if (blocksRes.error) setError(blocksRes.error.message);
-    else setBlocks(blocksRes.data ?? []);
+    else setBlocks((blocksRes.data ?? []).filter((b: ScheduleBlock) => !b.archived_at));
     if (!commitmentsRes.error) setCommitments(commitmentsRes.data ?? []);
     setLoading(false);
   }, []);
@@ -72,7 +73,7 @@ export default function SchedulePage() {
     setError(null);
     try {
       await regenerateAutoBlocksForDays(supabase, user.id, [0, 1, 2, 3, 4, 5, 6]);
-      await fetchBlocks();
+      await fetchBlocks(); // ScheduleInsights below re-derives shortfalls from the saved blocks
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to regenerate schedule');
     } finally {
@@ -146,6 +147,8 @@ export default function SchedulePage() {
           <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
         </Card>
       )}
+
+      <ScheduleInsights commitments={commitments} blocks={blocks} />
 
       <DailyTargets blocks={blocks} />
 

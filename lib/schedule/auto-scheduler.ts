@@ -1,30 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RecurringCommitment, ScheduleBlock } from '@/lib/supabase/client';
 import { minutesOfDay, minutesToHM } from '@/lib/utils/dates';
-
-// The window the scheduler will place blocks within on any given day.
-const DAY_WINDOW_START = 9 * 60; // 09:00 — wake time; nothing auto-scheduled before it
-const DAY_WINDOW_END = 23 * 60; // 23:00
-const GAP_STEP_MIN = 5; // granularity when scanning for an open gap
-
-type Window = { startMin: number; endMin: number };
-
-function overlaps(a: Window, b: Window): boolean {
-  return a.startMin < b.endMin && a.endMin > b.startMin;
-}
-
-function findOpenSlot(durationMin: number, occupied: Window[]): Window | null {
-  const sorted = [...occupied].sort((a, b) => a.startMin - b.startMin);
-  for (let start = DAY_WINDOW_START; start + durationMin <= DAY_WINDOW_END; start += GAP_STEP_MIN) {
-    const candidate: Window = { startMin: start, endMin: start + durationMin };
-    if (!sorted.some((w) => overlaps(candidate, w))) return candidate;
-  }
-  return null;
-}
+import {
+  planDay,
+  nextDateForWeekday,
+  type PrayerLectureFlag,
+  type Shortfall,
+  type PlannerCommitment,
+} from '@/lib/schedule/planner';
 
 export type SchedulerResult = {
   placed: { commitment: RecurringCommitment; startMin: number; endMin: number }[];
   skipped: { commitment: RecurringCommitment; reason: string }[];
+  /** Per-day work/learning that did not fit around lectures (visible in the Schedule UI). */
+  shortfalls: { dayOfWeek: number; shortfall: Shortfall }[];
+  /** Prayers that fall inside a lecture (left untouched; shown as "pray before/after"). */
+  prayerFlags: { dayOfWeek: number; flag: PrayerLectureFlag }[];
 };
 
 // Prayer is registered as recurring_commitments (for visibility — see
@@ -46,7 +37,9 @@ const EXCLUDED_ACTIVITY_TYPES = ['prayer'];
 export async function regenerateAutoBlocksForDay(
   supabase: SupabaseClient,
   userId: string,
-  dayOfWeek: number
+  dayOfWeek: number,
+  /** Local date the weekly template is evaluated for (effective_from/until). Defaults to the next such weekday. */
+  dateISO: string = nextDateForWeekday(dayOfWeek)
 ): Promise<SchedulerResult> {
   const [existingRes, commitmentsRes] = await Promise.all([
     supabase.from('schedule_blocks').select('*').eq('user_id', userId).eq('day_of_week', dayOfWeek),
@@ -58,11 +51,10 @@ export async function regenerateAutoBlocksForDay(
       .order('priority', { ascending: false }),
   ]);
 
-  const existing = (existingRes.data ?? []) as ScheduleBlock[];
-  const allCommitments = (commitmentsRes.data ?? []) as RecurringCommitment[];
-  const commitments = allCommitments.filter(
-    (c) => (c.applies_days ?? []).includes(dayOfWeek) && !EXCLUDED_ACTIVITY_TYPES.includes(c.activity_type)
-  );
+  // Archived (soft-deleted) rows are history: not occupied, not regenerated, not deleted.
+  const existing = ((existingRes.data ?? []) as ScheduleBlock[]).filter((b) => !b.archived_at);
+  const commitments = (commitmentsRes.data ?? []) as RecurringCommitment[];
+  const byId = new Map(commitments.map((c) => [c.id, c]));
 
   const manualBlocks = existing.filter((b) => b.source === 'manual');
   const autoBlockIds = existing
@@ -79,54 +71,42 @@ export async function regenerateAutoBlocksForDay(
   // generic scheduler must route around them same as a manual block would.
   const prayerBlocks = existing.filter((b) => b.source === 'auto' && b.activity_type === 'prayer');
 
-  const occupied: Window[] = [...manualBlocks, ...prayerBlocks].map((b) => ({
-    startMin: minutesOfDay(b.start_time),
-    endMin: minutesOfDay(b.end_time),
+  const plan = planDay({
+    dayOfWeek,
+    dateISO,
+    commitments: commitments as PlannerCommitment[],
+    manual: manualBlocks.map((b) => ({
+      startMin: minutesOfDay(b.start_time),
+      endMin: minutesOfDay(b.end_time),
+    })),
+    prayers: prayerBlocks.map((b) => ({
+      label: b.label,
+      startMin: minutesOfDay(b.start_time),
+      endMin: minutesOfDay(b.end_time),
+    })),
+  });
+
+  const result: SchedulerResult = {
+    placed: plan.placed.map((p) => ({
+      commitment: byId.get(p.commitment.id) as RecurringCommitment,
+      startMin: p.startMin,
+      endMin: p.endMin,
+    })),
+    skipped: plan.skipped.map((s) => ({ commitment: byId.get(s.commitment.id) as RecurringCommitment, reason: s.reason })),
+    shortfalls: plan.shortfalls.map((shortfall) => ({ dayOfWeek, shortfall })),
+    prayerFlags: plan.prayerFlags.map((flag) => ({ dayOfWeek, flag })),
+  };
+
+  const inserts = plan.placed.map((p) => ({
+    user_id: userId,
+    day_of_week: dayOfWeek,
+    activity_type: p.commitment.activity_type,
+    start_time: minutesToHM(p.startMin),
+    end_time: minutesToHM(p.endMin),
+    label: p.label,
+    source: 'auto',
+    commitment_id: p.commitment.id,
   }));
-
-  const result: SchedulerResult = { placed: [], skipped: [] };
-  const inserts: Record<string, unknown>[] = [];
-
-  // Fixed commitments go first and are pinned to their start time even if
-  // they overlap prayer or manual blocks; everything else routes around them.
-  const ordered = [...commitments].sort((a, b) => Number(!!b.fixed) - Number(!!a.fixed));
-
-  for (const commitment of ordered) {
-    let slot: Window | null = null;
-
-    if (commitment.fixed && commitment.preferred_start_time) {
-      const startMin = minutesOfDay(commitment.preferred_start_time);
-      slot = { startMin, endMin: startMin + commitment.target_duration_min };
-    } else if (commitment.preferred_start_time) {
-      const startMin = minutesOfDay(commitment.preferred_start_time);
-      const candidate: Window = { startMin, endMin: startMin + commitment.target_duration_min };
-      if (!occupied.some((w) => overlaps(candidate, w)) && candidate.endMin <= DAY_WINDOW_END) {
-        slot = candidate;
-      }
-    }
-
-    if (!slot) {
-      slot = findOpenSlot(commitment.target_duration_min, occupied);
-    }
-
-    if (!slot) {
-      result.skipped.push({ commitment, reason: 'No open slot long enough today' });
-      continue;
-    }
-
-    occupied.push(slot);
-    result.placed.push({ commitment, startMin: slot.startMin, endMin: slot.endMin });
-    inserts.push({
-      user_id: userId,
-      day_of_week: dayOfWeek,
-      activity_type: commitment.activity_type,
-      start_time: minutesToHM(slot.startMin),
-      end_time: minutesToHM(slot.endMin),
-      label: commitment.label,
-      source: 'auto',
-      commitment_id: commitment.id,
-    });
-  }
 
   if (inserts.length > 0) {
     await supabase.from('schedule_blocks').insert(inserts);
@@ -146,5 +126,7 @@ export async function regenerateAutoBlocksForDays(
   return {
     placed: results.flatMap((r) => r.placed),
     skipped: results.flatMap((r) => r.skipped),
+    shortfalls: results.flatMap((r) => r.shortfalls),
+    prayerFlags: results.flatMap((r) => r.prayerFlags),
   };
 }

@@ -95,6 +95,11 @@ export async function applyScheduleActions(
       const { data: existing } = await supabase
         .from('recurring_commitments').select('*').eq('id', a.id).eq('user_id', userId).maybeSingle();
       if (!existing) { results.push('Could not find that commitment.'); continue; }
+      // Lectures are non-negotiable: edited in the Schedule page only (e.g. to set effective_until).
+      if (existing.category === 'university') {
+        results.push(`"${existing.label}" is a lecture — it can't be changed from chat. Edit it on the Schedule page.`);
+        continue;
+      }
       (existing.applies_days as number[]).forEach((d) => affectedDays.add(d));
       if (a.op === 'delete') {
         const { error: dbErr } = await supabase.from('recurring_commitments').delete().eq('id', a.id).eq('user_id', userId);

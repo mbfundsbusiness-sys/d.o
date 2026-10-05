@@ -490,6 +490,9 @@ export type ScheduleBlock = {
   label: string;
   source: ScheduleBlockSource;
   commitment_id: string | null;
+  /** Soft-delete marker; archived blocks are ignored everywhere and can be restored. */
+  archived_at?: string | null;
+  archived_reason?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -507,6 +510,12 @@ export type RecurringCommitment = {
   priority: number;
   active: boolean;
   fixed: boolean;
+  /** 'university' | 'work' | 'learning' | 'fitness' | ... (null on legacy rows; see lib/schedule/planner.ts categoryOf). */
+  category?: string | null;
+  /** Local (Europe/London) dates, inclusive. effective_until null = open-ended. */
+  effective_from?: string | null;
+  effective_until?: string | null;
+  location?: string | null;
   created_at: string;
   updated_at: string;
 };
