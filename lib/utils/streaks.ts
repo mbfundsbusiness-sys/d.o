@@ -48,6 +48,15 @@ export type GoalInputs = {
   lectureDows?: number[];
 };
 
+export type DayReview = {
+  date: string;
+  totals: DayTotals;
+  goals: Goals;
+  /** 'rest' = Sunday, 'shift' / 'lecture' = lighter targets, 'full' = normal day. */
+  dayType: 'rest' | 'shift' | 'lecture' | 'full';
+  qualifies: boolean;
+};
+
 export type GoalStreak = {
   current: number;
   longest: number;
@@ -55,6 +64,8 @@ export type GoalStreak = {
   todayQualifies: boolean;
   /** Targets in force today (reduced on shift / lecture days). */
   todayGoals: Goals;
+  /** Last 14 days, newest first, for the review grid. */
+  recent: DayReview[];
   /** Qualifying days among the last 30 calendar days (including today). */
   qualifyingLast30: number;
 };
@@ -125,6 +136,20 @@ export function summariseGoals(input: GoalInputs, today: string = todayISO()): G
     if (new Date(Date.UTC(y, m - 1, dd)).getUTCDay() === 0) qualifying.add(d);
   }
   const todayGoals = goalsFor(today, ctx);
+  const recent: DayReview[] = [];
+  for (let i = 0; i < 14; i++) {
+    const date = addDaysISO(today, -i);
+    const [y, m, dd] = date.split('-').map(Number);
+    const isSunday = new Date(Date.UTC(y, m - 1, dd)).getUTCDay() === 0;
+    const goals = goalsFor(date, ctx);
+    recent.push({
+      date,
+      totals: totals.get(date) ?? { ...EMPTY_TOTALS },
+      goals,
+      dayType: isSunday ? 'rest' : goals === SHIFT_DAY_GOALS ? 'shift' : goals === LECTURE_DAY_GOALS ? 'lecture' : 'full',
+      qualifies: qualifying.has(date),
+    });
+  }
   let last30 = 0;
   for (let i = 0; i < 30; i++) if (qualifying.has(addDaysISO(today, -i))) last30++;
   const todayTotals = totals.get(today) ?? { ...EMPTY_TOTALS };
@@ -134,6 +159,7 @@ export function summariseGoals(input: GoalInputs, today: string = todayISO()): G
     today: todayTotals,
     todayQualifies: qualifying.has(today),
     todayGoals,
+    recent,
     qualifyingLast30: last30,
   };
 }

@@ -13,6 +13,7 @@ export const EMPTY_GOAL_STREAK: GoalStreak = {
   today: { ...EMPTY_TOTALS },
   todayQualifies: false,
   todayGoals: GOALS,
+  recent: [],
   qualifyingLast30: 0,
 };
 

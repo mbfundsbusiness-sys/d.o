@@ -4,7 +4,6 @@ import {
   Briefcase,
   GraduationCap,
   TrendingUp,
-  Sparkles,
   Moon,
   Feather,
   CalendarClock,
@@ -22,7 +21,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: '/app', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/app/anchors', label: 'Daily Anchors', icon: Flame },
+  { href: '/app/anchors', label: 'Daily Review', icon: Flame },
   { href: '/app/working', label: 'Working', icon: Briefcase },
   { href: '/app/learning', label: 'Learning', icon: GraduationCap },
   { href: '/app/invest', label: 'Invest', icon: TrendingUp },
@@ -32,7 +31,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/app/schedule', label: 'Schedule', icon: CalendarClock },
   { href: '/app/roadmap', label: 'Roadmap', icon: Map },
   { href: '/app/ghostwriter', label: 'Ghostwriter', icon: Feather },
-  { href: '/app/assistant', label: 'Assistant', icon: Sparkles },
   { href: '/app/settings', label: 'Settings', icon: Settings },
 ];
 
