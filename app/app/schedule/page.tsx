@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, type ScheduleBlock, type RecurringCommitment } from '@/lib/supabase/client';
+import { supabase, type ScheduleBlock, type RecurringCommitment, type WorkShift } from '@/lib/supabase/client';
+import { fetchUpcomingShifts } from '@/lib/schedule/shifts';
+import { ShiftsEditor } from '@/components/shifts-editor';
 import { useAuth } from '@/lib/auth/provider';
 import { ScheduleToday } from '@/components/schedule-today';
 import { ScheduleWeekEditor } from '@/components/schedule-week-editor';
@@ -24,6 +26,7 @@ export default function SchedulePage() {
   const { user } = useAuth();
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [commitments, setCommitments] = useState<RecurringCommitment[]>([]);
+  const [shifts, setShifts] = useState<WorkShift[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<ScheduleView>('list');
@@ -49,6 +52,7 @@ export default function SchedulePage() {
   }
 
   const fetchBlocks = useCallback(async () => {
+    void fetchUpcomingShifts(14).then(setShifts);
     const [blocksRes, commitmentsRes] = await Promise.all([
       supabase
         .from('schedule_blocks')
@@ -152,7 +156,9 @@ export default function SchedulePage() {
 
       <DailyTargets blocks={blocks} />
 
-      <ScheduleToday blocks={blocks} settings={settings} />
+      <ScheduleToday blocks={blocks} settings={settings} shifts={shifts} />
+
+      {user && <ShiftsEditor userId={user.id} onChanged={fetchBlocks} />}
 
       {view === 'grid' ? (
         <ScheduleWeekGrid blocks={blocks} settings={settings} />

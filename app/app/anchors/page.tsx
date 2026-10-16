@@ -55,7 +55,7 @@ export default function AnchorsPage() {
         </div>
       ) : (
         <>
-          <AnchorStats logs={logs} />
+          <AnchorStats />
           <AnchorForm onLogged={fetchLogs} />
           <AnchorHistory logs={logs} onChanged={fetchLogs} />
         </>

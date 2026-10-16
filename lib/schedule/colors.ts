@@ -1,11 +1,12 @@
 import type { EffectiveBlock } from '@/lib/schedule/effective';
 
-export type BlockKind = 'lecture' | 'trading' | 'gym' | 'learning' | 'botcouncil' | 'prayer' | 'other';
+export type BlockKind = 'shift' | 'lecture' | 'trading' | 'gym' | 'learning' | 'botcouncil' | 'prayer' | 'other';
 
 type Look = { label: string; /** filled chip (grid, list rows) */ chip: string; /** solid swatch (legend) */ dot: string };
 
 // The one place schedule colours are decided. Everything else on the site stays monochrome.
 export const BLOCK_LOOK: Record<BlockKind, Look> = {
+  shift: { label: 'Work (DPD)', chip: 'border-orange-400/60 bg-orange-500/25 text-orange-100', dot: 'bg-orange-500' },
   lecture: { label: 'University', chip: 'border-purple-400/60 bg-purple-500/25 text-purple-100', dot: 'bg-purple-500' },
   trading: { label: 'Trading', chip: 'border-emerald-400/60 bg-emerald-500/25 text-emerald-100', dot: 'bg-emerald-500' },
   gym: { label: 'Gym', chip: 'border-sky-400/60 bg-sky-500/25 text-sky-100', dot: 'bg-sky-500' },
@@ -15,7 +16,8 @@ export const BLOCK_LOOK: Record<BlockKind, Look> = {
   other: { label: 'Other', chip: 'border-white/20 bg-white/[0.06] text-foreground', dot: 'bg-zinc-400' },
 };
 
-export function blockKind(b: Pick<EffectiveBlock, 'label' | 'activity_type'>): BlockKind {
+export function blockKind(b: Pick<EffectiveBlock, 'label' | 'activity_type'> & { kind?: 'shift' }): BlockKind {
+  if (b.kind === 'shift') return 'shift';
   if (/^uni lecture/i.test(b.label)) return 'lecture';
   if (b.activity_type === 'gym' || /gym/i.test(b.label)) return 'gym';
   switch (b.activity_type) {

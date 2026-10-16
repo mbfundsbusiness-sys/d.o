@@ -1,15 +1,11 @@
 'use client';
 
-import type { AnchorLog } from '@/lib/supabase/client';
-import { computeAnchorStreak, computeLongestStreak } from '@/lib/utils/streaks';
+import { useGoalStreak } from '@/lib/streaks/use-goal-streak';
 import { Card, CardContent } from '@/components/ui/card';
-import { Flame, Trophy, CalendarCheck, TrendingUp } from 'lucide-react';
+import { Flame, Trophy, CalendarCheck } from 'lucide-react';
 
-export function AnchorStats({ logs }: { logs: AnchorLog[] }) {
-  const currentStreak = computeAnchorStreak(logs);
-  const longestStreak = computeLongestStreak(logs);
-  const totalEntries = logs.length;
-  const totalApplications = logs.reduce((sum, l) => sum + l.applications_sent, 0);
+export function AnchorStats() {
+  const { current: currentStreak, longest: longestStreak, qualifyingLast30 } = useGoalStreak();
 
   const stats = [
     {
@@ -27,23 +23,16 @@ export function AnchorStats({ logs }: { logs: AnchorLog[] }) {
       tone: 'text-primary',
     },
     {
-      label: 'Total log entries',
-      value: `${totalEntries}`,
-      unit: totalEntries === 1 ? 'entry' : 'entries',
+      label: 'Qualifying days (30d)',
+      value: `${qualifyingLast30}`,
+      unit: qualifyingLast30 === 1 ? 'day' : 'days',
       icon: CalendarCheck,
       tone: 'text-accent',
-    },
-    {
-      label: 'Total applications',
-      value: `${totalApplications}`,
-      unit: totalApplications === 1 ? 'sent' : 'sent',
-      icon: TrendingUp,
-      tone: 'text-success',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-3 gap-3">
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (

@@ -5,7 +5,7 @@ import { supabase, type LanguageSession, type LanguageActivityType } from '@/lib
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Languages, Clock } from 'lucide-react';
-import { formatDateUK } from '@/lib/utils/dates';
+import { formatDateUK, dayStreak, londonDateISO, todayISO, addDaysISO } from '@/lib/utils/dates';
 
 const ACTIVITY_LABELS: Record<LanguageActivityType, string> = {
   vocabulary: 'Vocabulary',
@@ -158,25 +158,9 @@ function computeLanguageStreak(sessions: LanguageSession[]): number {
   if (sessions.length === 0) return 0;
   const days = new Set<string>();
   for (const s of sessions) {
-    days.add(s.started_at.slice(0, 10));
+    days.add(londonDateISO(s.started_at));
   }
-  const sorted = Array.from(days).sort().reverse();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
-
-  if (sorted[0] !== todayStr && sorted[0] !== yesterdayStr) return 0;
-
-  let streak = 0;
-  const cursor = new Date(sorted[0] + 'T00:00:00');
-  while (days.has(cursor.toISOString().slice(0, 10))) {
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
+  return dayStreak(days);
 }
 
 function computeWeeklyMinutes(sessions: LanguageSession[]): number {
@@ -196,18 +180,16 @@ function getUniqueLanguages(sessions: LanguageSession[]): string[] {
 
 function WeeklyBars({ sessions }: { sessions: LanguageSession[] }) {
   const days: { label: string; minutes: number }[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayStr = todayISO();
 
   for (let i = 6; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().slice(0, 10);
+    const dateStr = addDaysISO(todayStr, -i);
+    const date = new Date(dateStr + 'T12:00:00Z');
     const minutes = sessions
-      .filter((s) => s.started_at.slice(0, 10) === dateStr)
+      .filter((s) => londonDateISO(s.started_at) === dateStr)
       .reduce((sum, s) => sum + (s.duration_min ?? 0), 0);
     days.push({
-      label: date.toLocaleDateString('en-GB', { weekday: 'short' }),
+      label: date.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }),
       minutes,
     });
   }

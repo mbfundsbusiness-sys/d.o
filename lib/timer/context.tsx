@@ -69,36 +69,40 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Check all four tables for an open session (ended_at IS NULL)
-    const kinds: ActivityKind[] = ['trading', 'gym', 'language', 'job_search', 'reading', 'course', 'botcouncil'];
-    for (const kind of kinds) {
-      const table = TABLE_MAP[kind];
-      const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .is('ended_at', null)
-        .order('started_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) continue;
-      if (data) {
-        setRunning({
-          id: data.id,
-          kind,
-          started_at: data.started_at,
-          language: data.language,
-          activity_type: data.activity_type,
-          workout_type: data.workout_type,
-          in_plan: data.in_plan,
-          title: data.title,
-          pages: data.pages,
-          course_name: data.course_name,
-          note: data.note,
-        });
-        setLoading(false);
-        return;
-      }
+    // Check every session table in parallel for an open session (ended_at IS NULL).
+    // Previously these ran one after another (7 round trips on every load).
+    const kinds: ActivityKind[] = ['trading', 'gym', 'language', 'reading', 'course', 'botcouncil'];
+    const results = await Promise.all(
+      kinds.map(async (kind) => {
+        const { data, error } = await supabase
+          .from(TABLE_MAP[kind])
+          .select('*')
+          .is('ended_at', null)
+          .order('started_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        return error || !data ? null : { kind, data };
+      })
+    );
+    // Same precedence as before: first kind in the list wins.
+    const hit = results.find((r) => r !== null);
+    if (hit) {
+      const { kind, data } = hit;
+      setRunning({
+        id: data.id,
+        kind,
+        started_at: data.started_at,
+        language: data.language,
+        activity_type: data.activity_type,
+        workout_type: data.workout_type,
+        in_plan: data.in_plan,
+        title: data.title,
+        pages: data.pages,
+        course_name: data.course_name,
+        note: data.note,
+      });
+      setLoading(false);
+      return;
     }
 
     setRunning(null);

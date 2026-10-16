@@ -8,14 +8,15 @@ import {
   useRef,
   useState,
 } from 'react';
-import { supabase, type ScheduleBlock, type UserSettings, type TodoItem } from '@/lib/supabase/client';
+import { supabase, type ScheduleBlock, type UserSettings, type TodoItem, type WorkShift } from '@/lib/supabase/client';
+import { fetchShifts, shiftsOn } from '@/lib/schedule/shifts';
 import { useAuth } from '@/lib/auth/provider';
 import { londonNow } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
 
 export type ScheduleBanner = {
   id: string; // dedupe key
-  kind: 't15' | 'start';
+  kind: 't15' | 'start' | 'prep';
   title: string;
   body: string;
 };
@@ -61,6 +62,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
   const blocksRef = useRef<ScheduleBlock[]>([]);
   const settingsRef = useRef<UserSettings | null>(null);
   const todosRef = useRef<TodoItem[]>([]);
+  const shiftsRef = useRef<WorkShift[]>([]);
   const firedRef = useRef<Set<string>>(new Set());
 
   const dismiss = useCallback((id: string) => {
@@ -87,6 +89,8 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
 
   const loadData = useCallback(async () => {
     if (!user) return;
+    const todayStr = londonNow().dateISO;
+    shiftsRef.current = await fetchShifts(todayStr, todayStr);
     const [blocksRes, settingsRes, todosRes] = await Promise.all([
       supabase.from('schedule_blocks').select('*'),
       supabase.from('user_settings').select('*').maybeSingle(),
@@ -104,10 +108,26 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
     // block here; it's now a real schedule_blocks row (source='auto',
     // activity_type='prayer', written by lib/prayer/schedule-sync.ts) and
     // gets its alert from this same loop like every other module.
-    const today = effectiveBlocksForDay(blocksRef.current, settingsRef.current, now.dayOfWeek);
+    const today = effectiveBlocksForDay(blocksRef.current, settingsRef.current, now.dayOfWeek, shiftsOn(shiftsRef.current, now.dateISO));
 
     for (const block of today) {
       const minsUntil = block.startMin - now.minutesOfDay;
+
+      // On a shift day the shift wins: don't buzz you about gym/work/learning blocks that
+      // fall inside it. Lectures and prayers still alert (flagged as a clash in the text).
+      const isLectureOrPrayer = /^uni lecture/i.test(block.label) || block.activity_type === 'prayer';
+      if (block.clashesWith && !isLectureOrPrayer) continue;
+      const clashNote = block.clashesWith ? ` — clashes with ${block.clashesWith}` : '';
+
+      // Early heads-up for a shift (getting out the door), on top of the normal 15-minute alert.
+      if (block.kind === 'shift') {
+        const prepKey = `${block.id}:${now.dateISO}:prep`;
+        if (minsUntil > 15 && minsUntil <= 60 && !firedRef.current.has(prepKey)) {
+          firedRef.current.add(prepKey);
+          persistFired(firedRef.current);
+          fire({ id: prepKey, kind: 'prep', title: `Shift in ${minsUntil} min`, body: `${block.label} starts at ${block.start_time}` });
+        }
+      }
 
       const isPointInTime = block.start_time === block.end_time;
       const range = isPointInTime ? block.start_time : `${block.start_time}–${block.end_time}`;
@@ -120,7 +140,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
           id: t15Key,
           kind: 't15',
           title: `${block.label} in ${minsUntil} min`,
-          body: `Starts at ${range}`,
+          body: `Starts at ${range}${clashNote}`,
         });
       }
 
@@ -132,7 +152,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
           id: startKey,
           kind: 'start',
           title: `${block.label} — starting now`,
-          body: range,
+          body: `${range}${clashNote}`,
         });
       }
     }

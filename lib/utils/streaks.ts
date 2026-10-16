@@ -1,112 +1,107 @@
-import type { AnchorLog } from '@/lib/supabase/client';
+import { addDaysISO, dayStreak, londonDateISO, todayISO } from '@/lib/utils/dates';
 
 /**
- * Compute the current streak of consecutive days (ending today or yesterday)
- * where all three anchors were completed:
- * - wake_time is non-empty
- * - applications_sent >= 1
- * - trading_in_plan === true
+ * The daily-goal streak. A day counts when ALL of these happened (London date):
+ *   - wake time logged
+ *   - >= 60 min of BotCouncil work (timer sessions; NOT university, NOT the DPD job)
+ *   - >= 60 min of learning (language + course + reading timer sessions; NOT university)
+ *   - >= 30 min of gym
+ * Trading is deliberately not part of it (markets are Mon–Fri only).
  *
- * A day counts if ANY log entry for that day satisfies all three.
- * The streak counts back from the most recent qualifying day; if the most
- * recent qualifying day is today or yesterday, the streak is active.
+ * Pure module: no database access, so it is unit-testable. Fetching lives in
+ * lib/streaks/use-goal-streak.ts.
  */
-export function computeAnchorStreak(logs: AnchorLog[]): number {
-  if (logs.length === 0) return 0;
+export const GOALS = { workMin: 60, learningMin: 60, gymMin: 30 } as const;
 
-  // Build a map: date -> did all anchors hit?
-  const dayMap = new Map<string, boolean>();
-  for (const log of logs) {
-    const allHit =
-      !!log.wake_time &&
-      log.applications_sent >= 1 &&
-      log.trading_in_plan;
-    if (allHit) {
-      dayMap.set(log.log_date, true);
-    }
-  }
+export type SessionRow = { started_at: string; duration_min: number | null };
+export type AnchorRow = { log_date: string; wake_time: string | null };
 
-  if (dayMap.size === 0) return 0;
+export type DayTotals = {
+  wakeLogged: boolean;
+  workMin: number;
+  learningMin: number;
+  gymMin: number;
+};
 
-  // Find the most recent qualifying day
-  const sortedDays = Array.from(dayMap.keys()).sort().reverse();
-  const mostRecent = sortedDays[0];
+export type GoalInputs = {
+  anchorLogs: AnchorRow[];
+  botcouncil: SessionRow[];
+  learning: SessionRow[];
+  gym: SessionRow[];
+};
 
-  // Check if streak is "active" — most recent day is today or yesterday
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+export type GoalStreak = {
+  current: number;
+  longest: number;
+  today: DayTotals;
+  todayQualifies: boolean;
+  /** Qualifying days among the last 30 calendar days (including today). */
+  qualifyingLast30: number;
+};
 
-  if (mostRecent !== todayStr && mostRecent !== yesterdayStr) {
-    return 0; // streak broken
-  }
+export const EMPTY_TOTALS: DayTotals = { wakeLogged: false, workMin: 0, learningMin: 0, gymMin: 0 };
 
-  // Count back consecutively
-  let streak = 0;
-  const cursor = new Date(mostRecent + 'T00:00:00');
-  while (true) {
-    const cursorStr = cursor.toISOString().slice(0, 10);
-    if (dayMap.has(cursorStr)) {
-      streak++;
-      cursor.setDate(cursor.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-  return streak;
+export function dayQualifies(t: DayTotals): boolean {
+  return t.wakeLogged && t.workMin >= GOALS.workMin && t.learningMin >= GOALS.learningMin && t.gymMin >= GOALS.gymMin;
 }
 
-/**
- * Compute the longest streak ever from the logs.
- */
-export function computeLongestStreak(logs: AnchorLog[]): number {
-  if (logs.length === 0) return 0;
-
-  const dayMap = new Map<string, boolean>();
-  for (const log of logs) {
-    const allHit =
-      !!log.wake_time &&
-      log.applications_sent >= 1 &&
-      log.trading_in_plan;
-    if (allHit) {
-      dayMap.set(log.log_date, true);
+export function buildDayTotals(input: GoalInputs): Map<string, DayTotals> {
+  const days = new Map<string, DayTotals>();
+  const at = (date: string): DayTotals => {
+    let t = days.get(date);
+    if (!t) {
+      t = { ...EMPTY_TOTALS };
+      days.set(date, t);
     }
+    return t;
+  };
+  for (const l of input.anchorLogs) {
+    if (l.wake_time) at(l.log_date).wakeLogged = true;
   }
-
-  if (dayMap.size === 0) return 0;
-
-  const sortedDays = Array.from(dayMap.keys()).sort();
-  let longest = 1;
-  let current = 1;
-
-  for (let i = 1; i < sortedDays.length; i++) {
-    const prev = new Date(sortedDays[i - 1] + 'T00:00:00');
-    const curr = new Date(sortedDays[i] + 'T00:00:00');
-    const diff = Math.round((curr.getTime() - prev.getTime()) / 86400000);
-    if (diff === 1) {
-      current++;
-      longest = Math.max(longest, current);
-    } else {
-      current = 1;
+  const add = (rows: SessionRow[], key: 'workMin' | 'learningMin' | 'gymMin') => {
+    for (const r of rows) {
+      const mins = Number(r.duration_min ?? 0);
+      if (mins > 0) at(londonDateISO(r.started_at))[key] += mins;
     }
+  };
+  add(input.botcouncil, 'workMin');
+  add(input.learning, 'learningMin');
+  add(input.gym, 'gymMin');
+  return days;
+}
+
+export function qualifyingDays(days: Map<string, DayTotals>): Set<string> {
+  const out = new Set<string>();
+  days.forEach((t, date) => {
+    if (dayQualifies(t)) out.add(date);
+  });
+  return out;
+}
+
+export function longestStreak(days: ReadonlySet<string>): number {
+  const sorted = Array.from(days).sort();
+  let longest = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const d of sorted) {
+    run = prev !== null && addDaysISO(prev, 1) === d ? run + 1 : 1;
+    longest = Math.max(longest, run);
+    prev = d;
   }
   return longest;
 }
 
-/**
- * Return the set of dates (ISO strings) that have at least one qualifying log.
- */
-export function getQualifyingDays(logs: AnchorLog[]): Set<string> {
-  const set = new Set<string>();
-  for (const log of logs) {
-    const allHit =
-      !!log.wake_time &&
-      log.applications_sent >= 1 &&
-      log.trading_in_plan;
-    if (allHit) set.add(log.log_date);
-  }
-  return set;
+export function summariseGoals(input: GoalInputs, today: string = todayISO()): GoalStreak {
+  const totals = buildDayTotals(input);
+  const qualifying = qualifyingDays(totals);
+  let last30 = 0;
+  for (let i = 0; i < 30; i++) if (qualifying.has(addDaysISO(today, -i))) last30++;
+  const todayTotals = totals.get(today) ?? { ...EMPTY_TOTALS };
+  return {
+    current: dayStreak(qualifying, today),
+    longest: longestStreak(qualifying),
+    today: todayTotals,
+    todayQualifies: dayQualifies(todayTotals),
+    qualifyingLast30: last30,
+  };
 }

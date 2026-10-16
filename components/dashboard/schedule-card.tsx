@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { CalendarClock, AlertTriangle } from 'lucide-react';
-import { supabase, type ScheduleBlock, type RecurringCommitment } from '@/lib/supabase/client';
+import { supabase, type ScheduleBlock, type RecurringCommitment, type WorkShift } from '@/lib/supabase/client';
+import { fetchShifts, shiftsOn } from '@/lib/schedule/shifts';
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { DashCard } from '@/components/ui/glass-card';
 import { londonNow } from '@/lib/utils/dates';
@@ -16,16 +17,20 @@ export function ScheduleCard() {
   const { settings } = useUserSettings();
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [commitments, setCommitments] = useState<RecurringCommitment[]>([]);
+  const [shifts, setShifts] = useState<WorkShift[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => londonNow());
 
   useEffect(() => {
     (async () => {
-      const [b, c] = await Promise.all([
+      const todayStr = londonNow().dateISO;
+      const [b, c, sh] = await Promise.all([
         supabase.from('schedule_blocks').select('*').eq('day_of_week', londonNow().dayOfWeek),
         supabase.from('recurring_commitments').select('*').eq('active', true),
+        fetchShifts(todayStr, todayStr),
       ]);
+      setShifts(sh);
       if (b.error) setError(b.error.message);
       setBlocks((b.data ?? []) as ScheduleBlock[]);
       setCommitments((c.data ?? []) as RecurringCommitment[]);
@@ -35,7 +40,7 @@ export function ScheduleCard() {
     return () => clearInterval(t);
   }, []);
 
-  const today = effectiveBlocksForDay(blocks, settings, now.dayOfWeek);
+  const today = effectiveBlocksForDay(blocks, settings, now.dayOfWeek, shiftsOn(shifts, now.dateISO));
   const insights = dayInsights(commitments as PlannerCommitment[], blocks, now.dayOfWeek, now.dateISO);
 
   return (
@@ -56,7 +61,10 @@ export function ScheduleCard() {
                   current && 'ring-2 ring-foreground'
                 )}
               >
-                <span className="truncate font-medium">{b.label}</span>
+                <span className="truncate font-medium">
+                  {b.label}
+                  {b.clashesWith && <span className="ml-2 text-[11px] font-normal text-amber-300">clashes with shift</span>}
+                </span>
                 <span className="shrink-0 font-mono text-xs tabular-nums opacity-80">
                   {b.start_time}–{b.end_time}
                 </span>

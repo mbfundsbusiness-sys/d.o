@@ -17,7 +17,6 @@ type AnchorFormProps = {
 export function AnchorForm({ onLogged }: AnchorFormProps) {
   const [logDate, setLogDate] = useState(todayISO());
   const [wakeTime, setWakeTime] = useState('');
-  const [applicationsSent, setApplicationsSent] = useState('0');
   const [tradingInPlan, setTradingInPlan] = useState(false);
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,7 +32,6 @@ export function AnchorForm({ onLogged }: AnchorFormProps) {
     const entry: AnchorLogInsert = {
       log_date: logDate,
       wake_time: wakeTime || null,
-      applications_sent: parseInt(applicationsSent, 10) || 0,
       trading_in_plan: tradingInPlan,
       note: note || null,
     };
@@ -47,7 +45,6 @@ export function AnchorForm({ onLogged }: AnchorFormProps) {
 
     setSuccess(true);
     setWakeTime('');
-    setApplicationsSent('0');
     setTradingInPlan(false);
     setNote('');
     setLoading(false);
@@ -82,17 +79,6 @@ export function AnchorForm({ onLogged }: AnchorFormProps) {
                 onChange={(e) => setWakeTime(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="applications-sent">Applications sent</Label>
-            <Input
-              id="applications-sent"
-              type="number"
-              min="0"
-              value={applicationsSent}
-              onChange={(e) => setApplicationsSent(e.target.value)}
-            />
           </div>
 
           <AnchorToggle

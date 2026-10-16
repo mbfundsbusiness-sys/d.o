@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Flame, CheckCircle2, AlertTriangle, ListChecks, Zap } from 'lucide-react';
+import { dayStreak, londonDateISO } from '@/lib/utils/dates';
 
 export default function BotCouncilView() {
   const [checks, setChecks] = useState<BotCouncilCheck[]>([]);
@@ -226,32 +227,9 @@ function computeCheckStreak(checks: BotCouncilCheck[]): number {
 
   const dayMap = new Set<string>();
   for (const c of checks) {
-    if (c.status === 'healthy') dayMap.add(c.checked_at.slice(0, 10));
+    if (c.status === 'healthy') dayMap.add(londonDateISO(c.checked_at));
   }
   if (dayMap.size === 0) return 0;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
-
-  const sortedDays = Array.from(dayMap).sort().reverse();
-  const mostRecent = sortedDays[0];
-
-  if (mostRecent !== todayStr && mostRecent !== yesterdayStr) return 0;
-
-  let streak = 0;
-  const cursor = new Date(mostRecent + 'T00:00:00');
-  while (true) {
-    const cursorStr = cursor.toISOString().slice(0, 10);
-    if (dayMap.has(cursorStr)) {
-      streak++;
-      cursor.setDate(cursor.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-  return streak;
+  return dayStreak(dayMap);
 }

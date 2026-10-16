@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase, type GymSession } from '@/lib/supabase/client';
 import { DashCard } from '@/components/ui/glass-card';
 import { Dumbbell } from 'lucide-react';
+import { londonDateISO, todayISO } from '@/lib/utils/dates';
 
 export function GymCard() {
   const [sessions, setSessions] = useState<GymSession[]>([]);
@@ -20,8 +21,7 @@ export function GymCard() {
   }, []);
 
   const last = sessions[0];
-  const today = new Date().toISOString().slice(0, 10);
-  const doneToday = last && last.ended_at && last.started_at.slice(0, 10) === today;
+  const doneToday = !!last && !!last.ended_at && londonDateISO(last.started_at) === todayISO();
 
   return (
     <DashCard title="Gym" icon={Dumbbell} href="/app/working?tab=gym" loading={loading} error={error}>

@@ -19,7 +19,7 @@ const TABLE_MAP: Record<ActivityKind, string> = {
   botcouncil: 'botcouncil_sessions',
 };
 
-const PICKABLE_KINDS: ActivityKind[] = ['trading', 'gym', 'language', 'job_search', 'reading', 'course', 'botcouncil'];
+const PICKABLE_KINDS: ActivityKind[] = ['trading', 'gym', 'language', 'reading', 'course', 'botcouncil'];
 
 type RecentSession = { id: string; kind: ActivityKind; started_at: string; duration_min: number | null };
 

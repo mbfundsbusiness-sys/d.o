@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
+import type { ScheduleBlock, UserSettings, WorkShift } from '@/lib/supabase/client';
+import { shiftsOn } from '@/lib/schedule/shifts';
 import { Card, CardContent } from '@/components/ui/card';
 import { londonNow } from '@/lib/utils/dates';
 import { blockKind, BLOCK_LOOK } from '@/lib/schedule/colors';
@@ -20,9 +21,11 @@ function countdown(mins: number): string {
 export function ScheduleToday({
   blocks,
   settings,
+  shifts = [],
 }: {
   blocks: ScheduleBlock[];
   settings: UserSettings | null;
+  shifts?: WorkShift[];
 }) {
   const [now, setNow] = useState(() => londonNow());
 
@@ -31,7 +34,7 @@ export function ScheduleToday({
     return () => clearInterval(t);
   }, []);
 
-  const today = effectiveBlocksForDay(blocks, settings, now.dayOfWeek);
+  const today = effectiveBlocksForDay(blocks, settings, now.dayOfWeek, shiftsOn(shifts, now.dateISO));
   const current = today.find((b) => now.minutesOfDay >= b.startMin && now.minutesOfDay < b.endMin) ?? null;
   const next = today.find((b) => b.startMin > now.minutesOfDay) ?? null;
 
@@ -91,6 +94,7 @@ function NowNext({
       {block ? (
         <>
           <p className="mt-1 text-base font-semibold">{block.label}</p>
+          {block.clashesWith && <p className="text-[11px] text-amber-300">Clashes with {block.clashesWith}</p>}
           <p className="text-xs text-muted-foreground tabular-nums">
             {block.start_time}–{block.end_time}
             {label === 'Now'

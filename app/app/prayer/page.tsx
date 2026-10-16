@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Check, Flame, Sunrise, Sun, Sunset, Moon, CloudSun } from 'lucide-react';
-import { todayISO, formatDateUK, fmtHM, londonNow } from '@/lib/utils/dates';
+import { todayISO, formatDateUK, fmtHM, londonNow, addDaysISO } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils';
 
 const PRAYERS: { name: PrayerName; label: string; icon: typeof Sunrise }[] = [
@@ -106,27 +106,12 @@ export default function PrayerPage() {
       if (log.completed) dayMap.get(log.log_date)!.add(log.prayer_name);
     }
 
-    const todayDate = new Date(today + 'T00:00:00');
-    const yesterdayDate = new Date(today + 'T00:00:00');
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
-
-    // Start from today if all 5 done, or yesterday
-    let cursor = todayDate;
-    if (!dayMap.has(today) || dayMap.get(today)!.size < 5) {
-      cursor = yesterdayDate;
-    }
-
+    // Count back from today if all 5 are done, otherwise from yesterday.
+    let cursor = dayMap.has(today) && dayMap.get(today)!.size >= 5 ? today : addDaysISO(today, -1);
     let count = 0;
-    while (true) {
-      const cursorStr = cursor.toISOString().slice(0, 10);
-      const prayers = dayMap.get(cursorStr);
-      if (prayers && prayers.size >= 5) {
-        count++;
-        cursor.setDate(cursor.getDate() - 1);
-      } else {
-        break;
-      }
+    while ((dayMap.get(cursor)?.size ?? 0) >= 5) {
+      count++;
+      cursor = addDaysISO(cursor, -1);
     }
     return count;
   }, [logs, today]);
@@ -135,14 +120,12 @@ export default function PrayerPage() {
   const weekHistory = useMemo(() => {
     const days: { date: string; completed: number; total: number }[] = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const dateStr = addDaysISO(today, -i);
       const dayLogs = logs.filter(l => l.log_date === dateStr && l.completed);
       days.push({ date: dateStr, completed: dayLogs.length, total: 5 });
     }
     return days;
-  }, [logs]);
+  }, [logs, today]);
 
   async function togglePrayer(name: PrayerName) {
     setToggling(name);

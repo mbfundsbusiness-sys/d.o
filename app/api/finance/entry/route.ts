@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { callGemini, getGeminiApiKey } from '@/lib/gemini';
+import { todayISO } from '@/lib/utils/dates';
 
 export const runtime = 'nodejs';
 
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
       .from('finance_entries')
       .insert({
         user_id: userId,
-        entry_date: entryDate || new Date().toISOString().slice(0, 10),
+        entry_date: entryDate || todayISO(),
         amount,
         type,
         category,

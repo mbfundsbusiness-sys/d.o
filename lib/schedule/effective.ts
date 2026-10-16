@@ -1,4 +1,4 @@
-import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
+import type { ScheduleBlock, UserSettings, WorkShift } from '@/lib/supabase/client';
 import { minutesOfDay, minutesToHM, fmtHM } from '@/lib/utils/dates';
 
 export type EffectiveBlock = {
@@ -9,8 +9,12 @@ export type EffectiveBlock = {
   end_time: string; // "HH:MM"
   startMin: number;
   endMin: number;
-  /** true for the derived Friday Jummah block (not a real row). */
+  /** true for the derived Friday Jummah block and dated shifts (not weekly-template rows). */
   derived: boolean;
+  /** 'shift' for a dated work shift. */
+  kind?: 'shift';
+  /** Set when this block overlaps a work shift today (the shift wins; the block is shown as clashing). */
+  clashesWith?: string;
 };
 
 const FRIDAY = 5;
@@ -28,6 +32,38 @@ function overlapsMidday(startMin: number, endMin: number): boolean {
  * midday slot (~12:30–13:30) is removed and a derived Jummah block is spliced in.
  */
 export function effectiveBlocksForDay(
+  blocks: ScheduleBlock[],
+  settings: UserSettings | null,
+  dayOfWeek: number,
+  /** Work shifts that fall on THIS date (callers filter by date). Shifts are fixed and win clashes. */
+  shifts: WorkShift[] = []
+): EffectiveBlock[] {
+  const merged = effectiveTemplateBlocks(blocks, settings, dayOfWeek);
+  if (shifts.length === 0) return merged;
+
+  const shiftBlocks = shifts.map<EffectiveBlock>((sh) => ({
+    id: `shift-${sh.id}`,
+    label: sh.title,
+    activity_type: 'custom',
+    start_time: fmtHM(sh.start_time),
+    end_time: fmtHM(sh.end_time),
+    startMin: minutesOfDay(sh.start_time),
+    endMin: minutesOfDay(sh.end_time),
+    derived: true,
+    kind: 'shift',
+  }));
+
+  // Template blocks that overlap a shift are kept (so a lecture on a work day is
+  // still visible) but flagged. Prayers are never flagged — they are fixed by the sun.
+  const flagged = merged.map((b) => {
+    if (b.activity_type === 'prayer') return b;
+    const hit = shiftBlocks.find((sh) => b.startMin < sh.endMin && b.endMin > sh.startMin);
+    return hit ? { ...b, clashesWith: hit.label } : b;
+  });
+  return [...flagged, ...shiftBlocks].sort((a, b) => a.startMin - b.startMin);
+}
+
+function effectiveTemplateBlocks(
   blocks: ScheduleBlock[],
   settings: UserSettings | null,
   dayOfWeek: number

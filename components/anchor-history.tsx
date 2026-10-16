@@ -3,7 +3,7 @@
 import { supabase, type AnchorLog } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeleteButton } from '@/components/delete-button';
-import { Check, X, Clock, Send, Bot, BookOpen, Dumbbell, Languages } from 'lucide-react';
+import { Check, X, Clock, Bot, BookOpen, Dumbbell, Languages } from 'lucide-react';
 import { formatDateUK } from '@/lib/utils/dates';
 
 export function AnchorHistory({ logs, onChanged }: { logs: AnchorLog[]; onChanged: () => void }) {
@@ -55,11 +55,6 @@ export function AnchorHistory({ logs, onChanged }: { logs: AnchorLog[]; onChange
                 icon={Clock}
                 label={log.wake_time ? `${log.wake_time}` : '—'}
                 active={!!log.wake_time}
-              />
-              <AnchorChip
-                icon={Send}
-                label={`${log.applications_sent} app${log.applications_sent === 1 ? '' : 's'}`}
-                active={log.applications_sent > 0}
               />
               <AnchorChip
                 icon={Check}

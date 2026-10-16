@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase/server';
 import { callGemini, getGeminiApiKey } from '@/lib/gemini';
-import { londonNow } from '@/lib/utils/dates';
+import { londonNow, addDaysISO, todayISO } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
 import { extractActions, applyScheduleActions } from '@/lib/assistant/schedule-actions';
 import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
 
-const SYSTEM_PROMPT = `You are the Dedication Optimiser AI — a personal accountability coach for a 21-year-old rebuilding from zero. The user previously passed £3M in funded trading challenges with £400k live at one point, but those accounts are no longer active. They're now enrolled at university studying electronic engineering / software, with no car, zero savings, and zero live trading capital. Their priority is to land an apprenticeship or role in London or within 15 miles west alongside their degree, while maintaining trading discipline and light maintenance on a separate product called BotCouncil.
+const londonToday = () => todayISO();
+const londonDaysAhead = (n: number) => addDaysISO(todayISO(), n);
+
+const SYSTEM_PROMPT = `You are the Dedication Optimiser AI — a personal accountability coach for a 21-year-old rebuilding from zero. The user previously passed £3M in funded trading challenges with £400k live at one point, but those accounts are no longer active. They're now enrolled at university studying electronic engineering / software and work as a delivery driver for DPD (Hounslow West, TW3 / TW4) on rotating, variable shifts. They need that job, so it comes first. They have no car, zero savings, and zero live trading capital. They are no longer job hunting; the focus is holding down the job and the degree while rebuilding discipline, trading process, and light maintenance on a separate product called BotCouncil.
 
 Your role:
 - Be direct, practical, and encouraging without being saccharine
-- Reference the user's actual data when relevant — streaks, applications, sessions logged
+- Reference the user's actual data when relevant — the daily streak, shifts, sessions logged
 - Hold them accountable to their 4-phase roadmap (Foundation, Search Sprint, Stabilise, Scale)
 - Phase 1 (Foundation) now has to be planned around a heavy university lecture timetable alongside trading discipline and BotCouncil maintenance. Lectures (category "university", fixed, priority 10) are non-negotiable and immovable — everything else flexes around them. Never suggest skipping or moving a lecture. On lecture days (Mon and Thu) the full work/learning targets often can't fit: say so plainly (a shortfall is expected and correct, not a failure), prioritise work over learning, and don't encourage overpacking. If a prayer falls inside a lecture, advise praying before/after.
+- Work shifts (DPD) are dated, one-off, and also non-negotiable: the job outranks everything except it never replaces what a lecture requires. Lectures can fall on shift days and the user cannot control that — if a shift and a lecture clash, don't lecture them about it; help them plan around it. On shift days be realistic about what's achievable, and never shame a missed day.
+- The daily streak rule: a day counts when the user logged their wake time, did at least 60 min of BotCouncil work, at least 60 min of learning (language/course/reading, not university), and at least 30 min of gym. University and the DPD job do not count toward those targets. Trading is NOT part of the streak (markets are Mon–Fri only; weekend trading is extracurricular and not judged in-plan or not).
 - Keep responses concise and actionable — no walls of text
 - If they're slipping on discipline, call it out honestly but constructively
 - If they're doing well, acknowledge it briefly and push for the next step
@@ -60,11 +65,10 @@ export async function POST(req: NextRequest) {
 
     const [
       anchorLogs,
-      jobApps,
+      workShiftsRes,
       tradingSessions,
       gymSessions,
       languageSessions,
-      jobSearchSessions,
       botCouncilChecks,
       conversationHistory,
       recurringCommitments,
@@ -74,11 +78,10 @@ export async function POST(req: NextRequest) {
       wishlistRes,
     ] = await Promise.all([
       supabaseServer.from('anchor_logs').select('*').eq('user_id', userId).gte('created_at', sevenDaysAgoISO).order('log_date', { ascending: false }),
-      supabaseServer.from('job_applications').select('*').eq('user_id', userId).gte('created_at', sevenDaysAgoISO).order('updated_at', { ascending: false }),
+      supabaseServer.from('work_shifts').select('*').eq('user_id', userId).gte('shift_date', londonToday()).lte('shift_date', londonDaysAhead(14)).order('shift_date', { ascending: true }),
       supabaseServer.from('trading_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
       supabaseServer.from('gym_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
       supabaseServer.from('language_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
-      supabaseServer.from('job_search_sessions').select('*').eq('user_id', userId).gte('started_at', sevenDaysAgoISO).order('started_at', { ascending: false }),
       supabaseServer.from('botcouncil_checks').select('*').eq('user_id', userId).gte('checked_at', sevenDaysAgoISO).order('checked_at', { ascending: false }),
       supabaseServer.from('assistant_conversations').select('*').eq('user_id', userId).order('created_at', { ascending: true }).limit(20),
       // Scheduling-architecture continuity — every table the rework introduced, not a subset.
@@ -93,14 +96,14 @@ export async function POST(req: NextRequest) {
     const contextParts: string[] = [];
 
     if (anchorLogs.data && anchorLogs.data.length > 0) {
-      contextParts.push(`=== Daily Anchor Logs (last 7 days) ===\n${anchorLogs.data.map((l: { log_date: string; wake_time: string | null; applications_sent: number; trading_in_plan: boolean; note: string | null }) =>
-        `${l.log_date}: wake=${l.wake_time || '—'}, apps=${l.applications_sent}, in_plan=${l.trading_in_plan}${l.note ? `, note="${l.note}"` : ''}`
+      contextParts.push(`=== Daily Anchor Logs (last 7 days) ===\n${anchorLogs.data.map((l: { log_date: string; wake_time: string | null; trading_in_plan: boolean; note: string | null }) =>
+        `${l.log_date}: wake=${l.wake_time || '—'}, in_plan=${l.trading_in_plan}${l.note ? `, note="${l.note}"` : ''}`
       ).join('\n')}`);
     }
 
-    if (jobApps.data && jobApps.data.length > 0) {
-      contextParts.push(`=== Job Applications (last 7 days) ===\n${jobApps.data.map((a: { company: string; role: string; status: string; location: string | null; applied_date: string | null; follow_up_sent: boolean }) =>
-        `${a.company} — ${a.role} (${a.status})${a.location ? `, ${a.location}` : ''}${a.applied_date ? `, applied ${a.applied_date}` : ''}${a.follow_up_sent ? ', followed up' : ''}`
+    if (workShiftsRes.data && workShiftsRes.data.length > 0) {
+      contextParts.push(`=== Upcoming DPD Work Shifts (next 14 days) ===\n${workShiftsRes.data.map((w: { shift_date: string; start_time: string; end_time: string; title: string }) =>
+        `${w.shift_date}: ${w.start_time.slice(0, 5)}–${w.end_time.slice(0, 5)} ${w.title}`
       ).join('\n')}`);
     }
 
@@ -123,13 +126,6 @@ export async function POST(req: NextRequest) {
       contextParts.push(`=== Language Sessions (last 7 days) ===\n${completed.map((s: { started_at: string; duration_min: number | null; language: string; activity_type: string }) =>
         `${new Date(s.started_at).toLocaleDateString('en-GB')}: ${s.language} ${s.activity_type}, ${s.duration_min}min`
       ).join('\n') || 'No completed language sessions'}`);
-    }
-
-    if (jobSearchSessions.data && jobSearchSessions.data.length > 0) {
-      const completed = jobSearchSessions.data.filter((s: { ended_at: string | null }) => s.ended_at);
-      contextParts.push(`=== Job Search Work Blocks (last 7 days) ===\n${completed.map((s: { started_at: string; duration_min: number | null }) =>
-        `${new Date(s.started_at).toLocaleDateString('en-GB')}: ${s.duration_min}min`
-      ).join('\n') || 'No completed job search blocks'}`);
     }
 
     if (botCouncilChecks.data && botCouncilChecks.data.length > 0) {

@@ -3,6 +3,7 @@
 import type { GymSession } from '@/lib/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Flame, Clock, CalendarCheck, TrendingUp } from 'lucide-react';
+import { dayStreak, londonDateISO } from '@/lib/utils/dates';
 
 export function GymStats({ sessions }: { sessions: GymSession[] }) {
   const completed = sessions.filter((s) => s.ended_at !== null);
@@ -79,31 +80,8 @@ function computeGymStreak(sessions: GymSession[]): number {
 
   const dayMap = new Set<string>();
   for (const s of sessions) {
-    dayMap.add(s.started_at.slice(0, 10));
+    dayMap.add(londonDateISO(s.started_at));
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
-
-  const sortedDays = Array.from(dayMap).sort().reverse();
-  const mostRecent = sortedDays[0];
-
-  if (mostRecent !== todayStr && mostRecent !== yesterdayStr) return 0;
-
-  let streak = 0;
-  const cursor = new Date(mostRecent + 'T00:00:00');
-  while (true) {
-    const cursorStr = cursor.toISOString().slice(0, 10);
-    if (dayMap.has(cursorStr)) {
-      streak++;
-      cursor.setDate(cursor.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-  return streak;
+  return dayStreak(dayMap);
 }

@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { ROADMAP_PHASES, type RoadmapPhase } from '@/lib/types/roadmap';
-import { computeAnchorStreak } from '@/lib/utils/streaks';
+import { fetchGoalStreak } from '@/lib/streaks/use-goal-streak';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, Circle, Lock, Loader2, Flame, Wallet, TrendingUp, Moon, Dumbbell, CandlestickChart, Bot } from 'lucide-react';
-import { formatDateUK } from '@/lib/utils/dates';
+import { formatDateUK, todayISO, addDaysISO } from '@/lib/utils/dates';
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -139,21 +139,21 @@ export default function RoadmapPage() {
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
     const weekAgoISO = weekAgo.toISOString();
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = todayISO();
 
     const [
       financeRes,
       prayerRes,
       tradingRes,
       gymRes,
-      anchorRes,
+      goalStreak,
       botCouncilRes,
     ] = await Promise.all([
       supabase.from('finance_entries').select('*'),
       supabase.from('prayer_logs').select('*'),
       supabase.from('trading_sessions').select('*'),
       supabase.from('gym_sessions').select('*'),
-      supabase.from('anchor_logs').select('*'),
+      fetchGoalStreak(),
       supabase.from('botcouncil_checks').select('*'),
     ]);
 
@@ -180,8 +180,7 @@ export default function RoadmapPage() {
     const gymThisWeek = gymSessions.filter((s: { started_at: string }) => new Date(s.started_at) >= weekAgo).length;
 
     // Anchor logs
-    const anchorLogs = anchorRes.data ?? [];
-    const anchorStreak = computeAnchorStreak(anchorLogs);
+    const anchorStreak = goalStreak.current;
 
     // BotCouncil — distinct days with at least one healthy check, in the last 7 days
     const botCouncilChecks = botCouncilRes.data ?? [];
@@ -357,25 +356,12 @@ function computePrayerStreak(logs: { log_date: string; prayer_name: string; comp
     if (log.completed) dayMap.get(log.log_date)!.add(log.prayer_name);
   }
 
-  const todayDate = new Date(todayStr + 'T00:00:00');
-  const yesterdayDate = new Date(todayStr + 'T00:00:00');
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-
-  let cursor = todayDate;
-  if (!dayMap.has(todayStr) || dayMap.get(todayStr)!.size < 5) {
-    cursor = yesterdayDate;
-  }
-
+  // Count back from today if all 5 are done, otherwise from yesterday.
+  let cursor = (dayMap.get(todayStr)?.size ?? 0) >= 5 ? todayStr : addDaysISO(todayStr, -1);
   let count = 0;
-  while (true) {
-    const cursorStr = cursor.toISOString().slice(0, 10);
-    const prayers = dayMap.get(cursorStr);
-    if (prayers && prayers.size >= 5) {
-      count++;
-      cursor.setDate(cursor.getDate() - 1);
-    } else {
-      break;
-    }
+  while ((dayMap.get(cursor)?.size ?? 0) >= 5) {
+    count++;
+    cursor = addDaysISO(cursor, -1);
   }
   return count;
 }

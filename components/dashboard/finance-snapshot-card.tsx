@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase, type FinanceEntry } from '@/lib/supabase/client';
 import { DashCard } from '@/components/ui/glass-card';
 import { Wallet } from 'lucide-react';
+import { addDaysISO, todayISO } from '@/lib/utils/dates';
 
 export function FinanceSnapshotCard() {
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
@@ -12,9 +13,8 @@ export function FinanceSnapshotCard() {
 
   useEffect(() => {
     (async () => {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const { data, error } = await supabase.from('finance_entries').select('*').gte('entry_date', weekAgo.toISOString().slice(0, 10));
+      const weekAgo = addDaysISO(todayISO(), -7);
+      const { data, error } = await supabase.from('finance_entries').select('*').gte('entry_date', weekAgo);
       if (error) setError(error.message);
       setEntries(data ?? []);
       setLoading(false);

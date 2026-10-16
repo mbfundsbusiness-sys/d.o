@@ -61,12 +61,6 @@ export async function regenerateAutoBlocksForDay(
     .filter((b) => b.source === 'auto' && !EXCLUDED_ACTIVITY_TYPES.includes(b.activity_type))
     .map((b) => b.id);
 
-  // Clear this day's auto rows (excluding prayer's) — regenerated fresh
-  // below. Manual rows, and prayer's independently-managed rows, untouched.
-  if (autoBlockIds.length > 0) {
-    await supabase.from('schedule_blocks').delete().in('id', autoBlockIds);
-  }
-
   // Prayer's own auto blocks still occupy real time on the day — the
   // generic scheduler must route around them same as a manual block would.
   const prayerBlocks = existing.filter((b) => b.source === 'auto' && b.activity_type === 'prayer');
@@ -108,8 +102,19 @@ export async function regenerateAutoBlocksForDay(
     commitment_id: p.commitment.id,
   }));
 
+  // Insert the new rows FIRST and only then remove the old auto rows. The old
+  // order (delete, then insert, errors ignored) left the day empty whenever the
+  // insert failed. Now a failed insert throws and the existing schedule stays.
   if (inserts.length > 0) {
-    await supabase.from('schedule_blocks').insert(inserts);
+    const { error: insertError } = await supabase.from('schedule_blocks').insert(inserts);
+    if (insertError) throw new Error(`Could not save regenerated schedule: ${insertError.message}`);
+  }
+
+  // Clear the previous auto rows for this day (excluding prayer's). Manual rows,
+  // and prayer's independently-managed rows, are untouched.
+  if (autoBlockIds.length > 0) {
+    const { error: deleteError } = await supabase.from('schedule_blocks').delete().in('id', autoBlockIds);
+    if (deleteError) throw new Error(`Could not clear old schedule blocks: ${deleteError.message}`);
   }
 
   return result;

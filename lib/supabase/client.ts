@@ -537,6 +537,21 @@ export type UserSettings = {
 
 // --- To-do list ---
 
+/** A dated, one-off work shift (DPD). Rotating rota, so not part of the weekly template. */
+export type WorkShift = {
+  id: string;
+  user_id: string;
+  shift_date: string; // YYYY-MM-DD (London)
+  start_time: string; // "HH:MM" or "HH:MM:SS"
+  end_time: string;
+  title: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export const DEFAULT_SHIFT_TITLE = 'DPD Hounslow West TW3 TW4';
+
 export type TodoItem = {
   id: string;
   user_id: string;

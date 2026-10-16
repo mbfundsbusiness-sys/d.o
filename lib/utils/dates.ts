@@ -11,18 +11,19 @@ export function workingDaysBetween(from: Date, to: Date): number {
   const bankHolidays = getUKBankHolidays(from.getFullYear(), to.getFullYear());
 
   let count = 0;
-  const cursor = new Date(from);
-  cursor.setHours(0, 0, 0, 0);
+  // Walk calendar dates as strings (London) — toISOString() on a local-midnight
+  // Date shifts back a day in BST and made bank holidays miss their match.
+  let cursor = londonDateISO(from);
+  const end = londonDateISO(to);
 
-  while (cursor < to) {
-    const day = cursor.getDay();
-    const dateStr = cursor.toISOString().slice(0, 10);
+  while (cursor < end) {
+    const day = new Date(cursor + 'T00:00:00Z').getUTCDay();
     const isWeekend = day === 0 || day === 6;
-    const isHoliday = bankHolidays.has(dateStr);
+    const isHoliday = bankHolidays.has(cursor);
     if (!isWeekend && !isHoliday) {
       count++;
     }
-    cursor.setDate(cursor.getDate() + 1);
+    cursor = addDaysISO(cursor, 1);
   }
   return count;
 }
@@ -38,9 +39,9 @@ export function getUKBankHolidays(
     // Good Friday & Easter Monday — approximated with known dates
     const easter = computeEaster(year);
     const goodFriday = new Date(easter);
-    goodFriday.setDate(easter.getDate() - 2);
+    goodFriday.setUTCDate(easter.getUTCDate() - 2);
     const easterMonday = new Date(easter);
-    easterMonday.setDate(easter.getDate() + 1);
+    easterMonday.setUTCDate(easter.getUTCDate() + 1);
     holidays.add(goodFriday.toISOString().slice(0, 10));
     holidays.add(easterMonday.toISOString().slice(0, 10));
     // Early May Bank Holiday (first Monday of May)
@@ -63,16 +64,16 @@ function formatHoliday(year: number, month: number, day: number): string {
 
 function firstMondayOfMonth(year: number, month: number): string {
   const d = new Date(Date.UTC(year, month, 1));
-  while (d.getDay() !== 1) {
-    d.setDate(d.getDate() + 1);
+  while (d.getUTCDay() !== 1) {
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return d.toISOString().slice(0, 10);
 }
 
 function lastMondayOfMonth(year: number, month: number): string {
   const d = new Date(Date.UTC(year, month + 1, 0)); // last day of month
-  while (d.getDay() !== 1) {
-    d.setDate(d.getDate() - 1);
+  while (d.getUTCDay() !== 1) {
+    d.setUTCDate(d.getUTCDate() - 1);
   }
   return d.toISOString().slice(0, 10);
 }
@@ -106,8 +107,36 @@ export function formatDateUK(dateStr: string | null): string {
   });
 }
 
+/** Today's calendar date in Europe/London (YYYY-MM-DD) — not the UTC date, which is wrong 00:00–01:00 in summer. */
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return londonNow().dateISO;
+}
+
+/** Europe/London calendar date (YYYY-MM-DD) of an instant (Date, ISO timestamp or epoch ms). */
+export function londonDateISO(d: Date | string | number = new Date()): string {
+  return londonNow(new Date(d)).dateISO;
+}
+
+/** Pure calendar arithmetic on a YYYY-MM-DD string (no timezone/DST involvement). */
+export function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  t.setUTCDate(t.getUTCDate() + days);
+  return t.toISOString().slice(0, 10);
+}
+
+/**
+ * Consecutive-day streak over a set of YYYY-MM-DD dates. Active if `today` is
+ * in the set, or (so an unfinished today doesn't zero it) if yesterday is.
+ */
+export function dayStreak(days: ReadonlySet<string>, today: string = todayISO()): number {
+  let cursor = days.has(today) ? today : addDaysISO(today, -1);
+  let n = 0;
+  while (days.has(cursor)) {
+    n++;
+    cursor = addDaysISO(cursor, -1);
+  }
+  return n;
 }
 
 // --- Europe/London wall-clock helpers ---

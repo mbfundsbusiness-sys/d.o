@@ -12,7 +12,7 @@ const TABLE_MAP: Record<ActivityKind, string> = {
   job_search: 'job_search_sessions', reading: 'reading_sessions', course: 'course_sessions',
   botcouncil: 'botcouncil_sessions',
 };
-const KINDS: ActivityKind[] = ['trading', 'gym', 'language', 'job_search', 'reading', 'course', 'botcouncil'];
+const KINDS: ActivityKind[] = ['trading', 'gym', 'language', 'reading', 'course', 'botcouncil'];
 
 export function TimerCard() {
   const { running } = useTimer();
