@@ -10,7 +10,6 @@ import {
   Settings,
   ListTodo,
   Flame,
-  Timer,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -26,7 +25,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/app/learning', label: 'Learning', icon: GraduationCap },
   { href: '/app/invest', label: 'Invest', icon: TrendingUp },
   { href: '/app/prayer', label: 'Prayer', icon: Moon },
-  { href: '/app/timer', label: 'Timer', icon: Timer },
   { href: '/app/todo', label: 'To-do', icon: ListTodo },
   { href: '/app/schedule', label: 'Schedule', icon: CalendarClock },
   { href: '/app/roadmap', label: 'Roadmap', icon: Map },

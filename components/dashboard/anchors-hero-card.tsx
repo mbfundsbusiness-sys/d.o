@@ -7,11 +7,16 @@ import { SHIFT_DAY_GOALS, LECTURE_DAY_GOALS } from '@/lib/utils/streaks';
 import { useGoalStreak } from '@/lib/streaks/use-goal-streak';
 import { markAnchorField } from '@/lib/anchors/mark-done';
 import { londonNow, todayISO } from '@/lib/utils/dates';
-import { useTimer } from '@/lib/timer/context';
+import { useTimer, ACTIVITY_LABELS } from '@/lib/timer/context';
+import { PageTimer } from '@/components/page-timer';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import type { ActivityKind } from '@/lib/supabase/client';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Ring } from '@/components/ui/ring';
 import { Check, Flame, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const TIMER_KINDS: ActivityKind[] = ['botcouncil', 'language', 'reading', 'course', 'gym', 'trading'];
 
 type GoalRow = { key: string; label: string; done: number; target: number; unit: 'min' | 'logged' };
 
@@ -43,6 +48,7 @@ export function AnchorsHeroCard() {
   const { running } = useTimer();
   const [todayLog, setTodayLog] = useState<AnchorLog | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [kind, setKind] = useState<ActivityKind>('botcouncil');
 
   const loadToday = useCallback(async () => {
     const { data, error } = await supabase
@@ -161,6 +167,20 @@ export function AnchorsHeroCard() {
           </div>
         </div>
       )}
+
+      <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-border pt-4">
+        <Select value={kind} onValueChange={(v) => setKind(v as ActivityKind)} disabled={!!running}>
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TIMER_KINDS.map((k) => (
+              <SelectItem key={k} value={k}>{ACTIVITY_LABELS[k]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <PageTimer kind={running ? running.kind : kind} global onCompleted={() => void refresh()} />
+      </div>
     </GlassCard>
   );
 }
