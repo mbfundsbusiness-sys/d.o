@@ -117,7 +117,9 @@ export function AnchorsHeroCard() {
               </div>
               <div>{goals.todayQualifies ? "Streak secured. You're done — properly chill." : `${4 - doneCount} to go today`}</div>
               <div className="text-[11px]">
-                {goals.todayGoals === SHIFT_DAY_GOALS
+                {londonNow().dayOfWeek === 0
+                  ? 'Sunday: rest day, streak is safe'
+                  : goals.todayGoals === SHIFT_DAY_GOALS
                   ? 'Shift day: lighter targets'
                   : goals.todayGoals === LECTURE_DAY_GOALS
                     ? 'Lecture day: lighter targets'

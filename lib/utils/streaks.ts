@@ -118,6 +118,12 @@ export function summariseGoals(input: GoalInputs, today: string = todayISO()): G
   const totals = buildDayTotals(input);
   const ctx = { shiftDates: new Set(input.shiftDates ?? []), lectureDows: new Set(input.lectureDows ?? []) };
   const qualifying = qualifyingDays(totals, ctx);
+  // Sundays are rest days: they never break (or need to earn) the streak.
+  for (let i = 0; i < 400; i++) {
+    const d = addDaysISO(today, -i);
+    const [y, m, dd] = d.split('-').map(Number);
+    if (new Date(Date.UTC(y, m - 1, dd)).getUTCDay() === 0) qualifying.add(d);
+  }
   const todayGoals = goalsFor(today, ctx);
   let last30 = 0;
   for (let i = 0; i < 30; i++) if (qualifying.has(addDaysISO(today, -i))) last30++;
@@ -126,7 +132,7 @@ export function summariseGoals(input: GoalInputs, today: string = todayISO()): G
     current: dayStreak(qualifying, today),
     longest: longestStreak(qualifying),
     today: todayTotals,
-    todayQualifies: dayQualifies(todayTotals, todayGoals),
+    todayQualifies: qualifying.has(today),
     todayGoals,
     qualifyingLast30: last30,
   };
