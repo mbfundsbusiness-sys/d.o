@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase, type AnchorLog } from '@/lib/supabase/client';
-import { GOALS } from '@/lib/utils/streaks';
+import { SHIFT_DAY_GOALS, LECTURE_DAY_GOALS } from '@/lib/utils/streaks';
 import { useGoalStreak } from '@/lib/streaks/use-goal-streak';
 import { markAnchorField } from '@/lib/anchors/mark-done';
 import { londonNow, todayISO } from '@/lib/utils/dates';
@@ -86,9 +86,9 @@ export function AnchorsHeroCard() {
   const t = goals.today;
   const wakeDone = !!todayLog?.wake_time || t.wakeLogged;
   const rows: GoalRow[] = [
-    { key: 'work', label: 'BotCouncil work', done: t.workMin, target: GOALS.workMin, unit: 'min' },
-    { key: 'learn', label: 'Learning', done: t.learningMin, target: GOALS.learningMin, unit: 'min' },
-    { key: 'gym', label: 'Gym', done: t.gymMin, target: GOALS.gymMin, unit: 'min' },
+    { key: 'work', label: 'BotCouncil work', done: t.workMin, target: goals.todayGoals.workMin, unit: 'min' },
+    { key: 'learn', label: 'Learning', done: t.learningMin, target: goals.todayGoals.learningMin, unit: 'min' },
+    { key: 'gym', label: 'Gym', done: t.gymMin, target: goals.todayGoals.gymMin, unit: 'min' },
   ];
   const doneCount = Number(wakeDone) + rows.filter((r) => r.done >= r.target).length;
   const isWeekday = ![0, 6].includes(londonNow().dayOfWeek);
@@ -115,7 +115,14 @@ export function AnchorsHeroCard() {
                 <Flame className={cn('h-3.5 w-3.5', goals.current > 0 && 'text-foreground')} />
                 {goals.current} day{goals.current === 1 ? '' : 's'} streak
               </div>
-              <div>{goals.todayQualifies ? "Today's streak: secured" : `${4 - doneCount} to go today`}</div>
+              <div>{goals.todayQualifies ? "Streak secured. You're done — properly chill." : `${4 - doneCount} to go today`}</div>
+              <div className="text-[11px]">
+                {goals.todayGoals === SHIFT_DAY_GOALS
+                  ? 'Shift day: lighter targets'
+                  : goals.todayGoals === LECTURE_DAY_GOALS
+                    ? 'Lecture day: lighter targets'
+                    : 'Full day'}
+              </div>
             </div>
           </div>
           <div className="space-y-4">

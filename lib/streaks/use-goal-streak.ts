@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { addDaysISO, todayISO } from '@/lib/utils/dates';
-import { EMPTY_TOTALS, summariseGoals, type GoalStreak, type SessionRow } from '@/lib/utils/streaks';
+import { EMPTY_TOTALS, GOALS, summariseGoals, type GoalStreak, type SessionRow } from '@/lib/utils/streaks';
 
 const HISTORY_DAYS = 400;
 
@@ -12,6 +12,7 @@ export const EMPTY_GOAL_STREAK: GoalStreak = {
   longest: 0,
   today: { ...EMPTY_TOTALS },
   todayQualifies: false,
+  todayGoals: GOALS,
   qualifyingLast30: 0,
 };
 
@@ -30,8 +31,10 @@ export async function fetchGoalStreak(): Promise<GoalStreak> {
   const sinceDate = addDaysISO(today, -HISTORY_DAYS);
   const sinceISO = new Date(sinceDate + 'T00:00:00Z').toISOString();
 
-  const [anchors, botcouncil, reading, language, course, gym] = await Promise.all([
+  const [anchors, shiftRows, lectureRows, botcouncil, reading, language, course, gym] = await Promise.all([
     supabase.from('anchor_logs').select('log_date, wake_time').gte('log_date', sinceDate),
+    supabase.from('work_shifts').select('shift_date').gte('shift_date', sinceDate),
+    supabase.from('recurring_commitments').select('applies_days').eq('active', true).ilike('label', 'Uni Lecture%'),
     sessions('botcouncil_sessions', sinceISO),
     sessions('reading_sessions', sinceISO),
     sessions('language_sessions', sinceISO),
@@ -45,6 +48,8 @@ export async function fetchGoalStreak(): Promise<GoalStreak> {
       botcouncil,
       learning: [...reading, ...language, ...course],
       gym,
+      shiftDates: ((shiftRows.data ?? []) as { shift_date: string }[]).map((r) => r.shift_date),
+      lectureDows: ((lectureRows.data ?? []) as { applies_days: number[] | null }[]).flatMap((r) => r.applies_days ?? []),
     },
     today
   );

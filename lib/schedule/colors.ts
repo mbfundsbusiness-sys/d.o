@@ -1,6 +1,6 @@
 import type { EffectiveBlock } from '@/lib/schedule/effective';
 
-export type BlockKind = 'shift' | 'lecture' | 'trading' | 'gym' | 'learning' | 'botcouncil' | 'prayer' | 'other';
+export type BlockKind = 'shift' | 'lecture' | 'trading' | 'gym' | 'learning' | 'botcouncil' | 'prayer' | 'rest' | 'other';
 
 type Look = { label: string; /** filled chip (grid, list rows) */ chip: string; /** solid swatch (legend) */ dot: string };
 
@@ -13,12 +13,14 @@ export const BLOCK_LOOK: Record<BlockKind, Look> = {
   learning: { label: 'Learning', chip: 'border-red-400/60 bg-red-500/25 text-red-100', dot: 'bg-red-500' },
   botcouncil: { label: 'BotCouncil', chip: 'border-amber-400/60 bg-amber-500/25 text-amber-100', dot: 'bg-amber-500' },
   prayer: { label: 'Prayer', chip: 'border-teal-400/50 bg-teal-500/15 text-teal-100', dot: 'bg-teal-500' },
+  rest: { label: 'Free time', chip: 'border-pink-300/50 bg-pink-400/15 text-pink-100', dot: 'bg-pink-400' },
   other: { label: 'Other', chip: 'border-white/20 bg-white/[0.06] text-foreground', dot: 'bg-zinc-400' },
 };
 
 export function blockKind(b: Pick<EffectiveBlock, 'label' | 'activity_type'> & { kind?: 'shift' }): BlockKind {
   if (b.kind === 'shift') return 'shift';
   if (/^uni lecture/i.test(b.label)) return 'lecture';
+  if (/^free time/i.test(b.label)) return 'rest';
   if (b.activity_type === 'gym' || /gym/i.test(b.label)) return 'gym';
   switch (b.activity_type) {
     case 'trading':
