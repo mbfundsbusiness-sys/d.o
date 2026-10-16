@@ -15,6 +15,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { RunningTimerFallback } from '@/components/running-timer-fallback';
@@ -188,6 +189,9 @@ export function AppShell({
             <span className="hidden text-xs text-muted-foreground sm:block">
               {mounted ? new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short' }) : ''}
             </span>
+            <Button variant="ghost" size="icon" aria-label="Refresh" title="Refresh" onClick={() => window.location.reload()}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon" aria-label={`Notifications${banners.length > 0 ? ` (${banners.length})` : ''}`} className="relative">
               <Bell className="h-4 w-4" />
               {banners.length > 0 && (
