@@ -130,6 +130,7 @@ export function AnchorsHeroCard() {
                   : goals.todayGoals === LECTURE_DAY_GOALS
                     ? 'Lecture day: lighter targets'
                     : 'Full day'}
+                {' · free time from 20:30'}
               </div>
             </div>
           </div>
