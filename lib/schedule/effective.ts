@@ -75,7 +75,7 @@ export function effectiveBlocksForDay(
 
 /** Wake this long before the day's first lecture or shift (e.g. 09:30 lecture -> 07:30). */
 export const WAKE_LEAD_MIN = 120;
-export const SHIFT_DAY_WAKE_MIN = 4 * 60;
+export const SHIFT_WAKE_LEAD_MIN = 60;
 const isWake = (b: EffectiveBlock) => /^wake/i.test(b.label);
 const isLecture = (b: EffectiveBlock) => /^uni lecture/i.test(b.label);
 
@@ -87,11 +87,13 @@ const isLecture = (b: EffectiveBlock) => /^uni lecture/i.test(b.label);
 function moveWakeEarlier(blocks: EffectiveBlock[], shiftBlocks: EffectiveBlock[]): EffectiveBlock[] {
   const wake = blocks.find(isWake);
   if (!wake) return blocks;
-  const firstStarts = [...blocks.filter(isLecture), ...shiftBlocks].map((b) => b.startMin);
-  if (firstStarts.length === 0) return blocks;
-  let target = Math.max(0, Math.min(...firstStarts) - WAKE_LEAD_MIN);
-  // DPD days start at 04:00 (earlier only if the shift itself starts before 06:00).
-  if (shiftBlocks.length > 0) target = Math.min(target, SHIFT_DAY_WAKE_MIN);
+  // Wake 2h before the first lecture, or 1h before a DPD shift — whichever is earlier.
+  const candidates = [
+    ...blocks.filter(isLecture).map((b) => b.startMin - WAKE_LEAD_MIN),
+    ...shiftBlocks.map((b) => b.startMin - SHIFT_WAKE_LEAD_MIN),
+  ];
+  if (candidates.length === 0) return blocks;
+  const target = Math.max(0, Math.min(...candidates));
   if (target >= wake.startMin) return blocks;
   const dur = wake.endMin - wake.startMin;
   return blocks
