@@ -94,7 +94,7 @@ export function AnchorsHeroCard() {
   const isWeekday = ![0, 6].includes(londonNow().dayOfWeek);
 
   return (
-    <GlassCard className="flex flex-col gap-4">
+    <GlassCard hoverLift={false} className="flex h-full flex-col gap-5 lg:overflow-y-auto">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold tracking-tight">Today&apos;s Anchors</h3>
         <Link href="/app/anchors" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
@@ -107,9 +107,9 @@ export function AnchorsHeroCard() {
       ) : error ? (
         <p className="text-xs text-destructive">{error}</p>
       ) : (
-        <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-1 flex-col justify-center gap-6">
           <div className="flex items-center gap-3">
-            <Ring value={doneCount} max={4} />
+            <Ring value={doneCount} max={4} size={104} stroke={9} />
             <div className="space-y-0.5 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Flame className={cn('h-3.5 w-3.5', goals.current > 0 && 'text-foreground')} />
@@ -118,7 +118,7 @@ export function AnchorsHeroCard() {
               <div>{goals.todayQualifies ? "Today's streak: secured" : `${4 - doneCount} to go today`}</div>
             </div>
           </div>
-          <div className="flex-1 space-y-2.5">
+          <div className="space-y-4">
             <button
               onClick={toggleWake}
               className={cn(

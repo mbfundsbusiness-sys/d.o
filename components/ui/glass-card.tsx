@@ -43,7 +43,7 @@ export function DashCard({
   children?: React.ReactNode;
 }) {
   return (
-    <GlassCard className={cn('flex flex-col', className)}>
+    <GlassCard hoverLift={false} className={cn('flex flex-col', className)}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {Icon && <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />}
@@ -58,7 +58,7 @@ export function DashCard({
           </Link>
         )}
       </div>
-      <div className="flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
         {loading ? (
           <div className="space-y-2" aria-busy="true" aria-label={`Loading ${title}`}>
             <div className="h-3 w-3/4 animate-pulse rounded bg-foreground/10" />

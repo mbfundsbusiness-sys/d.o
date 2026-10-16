@@ -54,7 +54,7 @@ const PHASE_METRICS: Record<string, { key: keyof RollupData; label: string; form
     { key: 'tradingInPlanRate', label: 'In-plan rate', format: (v) => `${v}%`, icon: CandlestickChart },
     { key: 'botCouncilChecksThisWeek', label: 'BotCouncil checks', format: (v) => `${v}/7`, icon: Bot },
   ],
-  search_sprint: [
+  search_sprint: [ // phase id kept for stability; now "Work Routine"
     { key: 'anchorStreak', label: 'Anchor streak', format: (v) => `${v} days`, icon: Flame },
     { key: 'tradingSessionsThisWeek', label: 'Trading sessions', format: (v) => `${v}`, icon: CandlestickChart },
     { key: 'prayerStreak', label: 'Prayer streak', format: (v) => `${v} days`, icon: Moon },
@@ -120,7 +120,7 @@ function EmploymentStatus() {
         )}
         {error && <span className="text-xs text-destructive">{error}</span>}
         <span className="basis-full text-xs text-muted-foreground">
-          Informational only — Search Sprint stays open until the target role is secured.
+          Informational only.
         </span>
       </CardContent>
     </Card>

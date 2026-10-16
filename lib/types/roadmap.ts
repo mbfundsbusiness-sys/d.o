@@ -21,11 +21,11 @@ export const ROADMAP_PHASES: RoadmapPhase[] = [
     subtitle: 'Rebuild the base',
     status: 'active',
     description:
-      'Establish daily rhythm, stabilise sleep, set up the tracking habit, and prepare application materials. No capital deployment yet — just structure.',
+      'Establish daily rhythm, stabilise sleep, set up the tracking habit, and lock in the streak rule. No capital deployment yet — just structure.',
     goals: [
       'Consistent wake time at 9:00am',
       'Daily anchor logging becomes automatic',
-      'CV and cover letter template ready',
+      'Streak rule met daily: wake log, 1h BotCouncil, 1h learning, 30min gym',
       'Trading plan documented and reviewed daily',
     ],
     anchors: ['Wake time', 'Anchor log', 'Trading in-plan', 'BotCouncil check'],
@@ -33,18 +33,18 @@ export const ROADMAP_PHASES: RoadmapPhase[] = [
   {
     id: 'search_sprint',
     number: 2,
-    title: 'Search Sprint',
-    subtitle: 'High-volume applications',
+    title: 'Work Routine',
+    subtitle: 'Built around DPD shifts',
     status: 'upcoming',
     description:
-      'Sustained, disciplined job search. Target 5+ quality applications per day. Track every application, follow up at 5 working days, and keep trading discipline while the search runs.',
+      'Now working as a DPD delivery driver on rotating shifts, studying at university. Keep the daily streak alive around shifts and lectures, and keep trading discipline on weekdays.',
     goals: [
-      '5+ applications sent per day',
-      'Follow up on every application at 5 working days',
-      'Land first interview',
-      'Maintain trading-in-plan streak',
+      'Enter the week\'s shifts every weekend',
+      'Hit the daily streak on shift days too',
+      'Attend lectures, even on work days where possible',
+      'Maintain trading-in-plan on weekdays',
     ],
-    anchors: ['Applications sent', 'Follow-up flagging', 'Interview pipeline'],
+    anchors: ['Shifts entered', 'Streak', 'Lectures attended'],
   },
   {
     id: 'stabilise',
@@ -53,9 +53,9 @@ export const ROADMAP_PHASES: RoadmapPhase[] = [
     subtitle: 'Secure and settle',
     status: 'upcoming',
     description:
-      'Convert search into an apprenticeship or role. Stabilise income and routine. Light BotCouncil maintenance continues. Trading discipline stays strict — no over-leveraging just because income returns.',
+      'Turn the job into a stable base. Stabilise income and routine. Light BotCouncil maintenance continues. Trading discipline stays strict — no over-leveraging just because income returns.',
     goals: [
-      'Accept an offer in London or within 15 miles west',
+      'Settle into a predictable weekly routine around work and uni',
       'Stabilise weekly routine around work hours',
       'Begin rebuilding savings (first £500 buffer)',
       'Maintain BotCouncil maintenance cadence',

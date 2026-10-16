@@ -44,9 +44,9 @@ export function ScheduleCard() {
   const insights = dayInsights(commitments as PlannerCommitment[], blocks, now.dayOfWeek, now.dateISO);
 
   return (
-    <DashCard title="Today's schedule" icon={CalendarClock} href="/app/schedule" loading={loading} error={error} empty={!loading && today.length === 0}>
-      <div className="flex h-full flex-col gap-3">
-        <ul className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
+    <DashCard className="h-full lg:min-h-0" title="Today's schedule" icon={CalendarClock} href="/app/schedule" loading={loading} error={error} empty={!loading && today.length === 0}>
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {today.map((b) => {
             const look = BLOCK_LOOK[blockKind(b)];
             const current = now.minutesOfDay >= b.startMin && now.minutesOfDay < b.endMin;
@@ -55,7 +55,7 @@ export function ScheduleCard() {
               <li
                 key={b.id}
                 className={cn(
-                  'flex items-center justify-between gap-3 rounded-lg border px-3 py-1.5 text-sm',
+                  'flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-sm',
                   look.chip,
                   past && 'opacity-45',
                   current && 'ring-2 ring-foreground'

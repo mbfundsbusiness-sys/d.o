@@ -112,7 +112,7 @@ export function AssistantPanel() {
             <Sparkles className="mb-3 h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               Start a conversation. I can see your last 7 days of activity —
-              applications, trading sessions, gym, language, and daily anchors.
+              shifts, trading sessions, gym, language, and daily anchors.
             </p>
           </div>
         ) : (
