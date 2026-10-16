@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, type WishlistItem, type FinanceEntry } from '@/lib/supabase/client';
+import { PaydayCard } from '@/components/payday-card';
 import { WishlistList } from '@/components/wishlist-list';
 import { computeSavingsBalance } from '@/lib/finance/savings';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,8 +48,7 @@ export default function WishlistView() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Wishlist</h1>
         <p className="text-sm text-muted-foreground">
-          Things you want to buy — prioritised, funded against your real savings balance from
-          Finance.
+          Things you want to buy, each with its own pot. On payday the plan below fills the pots in priority order.
         </p>
       </div>
 
@@ -97,6 +97,8 @@ export default function WishlistView() {
           </CardContent>
         </Card>
       </div>
+
+      <PaydayCard items={items} onChanged={fetchAll} />
 
       <WishlistList items={items} savingsBalance={savingsBalance} onChanged={fetchAll} />
     </div>

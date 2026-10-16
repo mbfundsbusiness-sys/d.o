@@ -217,8 +217,9 @@ function WishlistRow({
 }) {
   const purchased = item.status === 'purchased';
   const targetCost = item.target_cost != null ? Number(item.target_cost) : null;
-  const fundedPct = targetCost && targetCost > 0 ? Math.min(100, (savingsBalance / targetCost) * 100) : null;
-  const shortfall = targetCost != null ? Math.max(0, targetCost - savingsBalance) : null;
+  const saved = Number(item.saved_amount ?? 0);
+  const fundedPct = targetCost && targetCost > 0 ? Math.min(100, (saved / targetCost) * 100) : null;
+  const shortfall = targetCost != null ? Math.max(0, targetCost - saved) : null;
 
   return (
     <div className={`rounded-lg border p-3 ${purchased ? 'border-border opacity-60' : 'border-border'}`}>
@@ -271,8 +272,8 @@ function WishlistRow({
           </div>
           <p className="text-[11px] text-muted-foreground">
             {fundedPct >= 100
-              ? 'Fully funded from your savings balance'
-              : `${Math.round(fundedPct)}% funded from savings · £${shortfall!.toFixed(2)} more needed`}
+              ? 'Pot is full: ready to buy'
+              : `${Math.round(fundedPct)}% saved · £${shortfall!.toFixed(2)} more needed`}
           </p>
         </div>
       )}
