@@ -7,6 +7,10 @@ export type PlanItem = {
   priority: 'high' | 'medium' | 'low';
   target_cost: number | null;
   saved_amount: number;
+  /** Cost of sub-items already bought (counts toward the pot's progress). */
+  spent?: number;
+  /** Share of the leftover after all targeted pots are full (0 = none). */
+  weight?: number;
   created_at: string;
 };
 
@@ -23,22 +27,50 @@ export type PaydayPlan = {
 
 const RANK = { high: 0, medium: 1, low: 2 } as const;
 
-/** Bills first, then fill goal pots in priority order (oldest first within a priority) until the money runs out. */
+/**
+ * Bills first, then fill goal pots in priority order (oldest first within a priority) until the money
+ * runs out. Whatever is left after every targeted pot is full is shared by `weight` (car, BotCouncil...).
+ */
 export function buildPlan(pay: number, bills: PlanBill[], items: PlanItem[]): PaydayPlan {
   const billsTotal = bills.reduce((s, b) => s + b.amount, 0);
   let left = Math.max(0, pay - billsTotal);
+  const adds = new Map<string, number>();
   const ordered = items
     .filter((i) => i.target_cost != null && Number(i.target_cost) > 0)
     .sort((a, b) => RANK[a.priority] - RANK[b.priority] || a.created_at.localeCompare(b.created_at));
-  const pots: PotLine[] = [];
   for (const i of ordered) {
-    const target = Number(i.target_cost);
-    const saved = Number(i.saved_amount);
-    const need = Math.max(0, target - saved);
+    const need = Math.max(0, Number(i.target_cost) - Number(i.spent ?? 0) - Number(i.saved_amount));
     const add = Math.round(Math.min(need, left) * 100) / 100;
     left = Math.round((left - add) * 100) / 100;
-    pots.push({ id: i.id, title: i.title, add, saved: saved + add, target, fullyFunded: saved + add >= target });
+    adds.set(i.id, add);
   }
+  const weighted = items.filter((i) => (i.weight ?? 0) > 0);
+  const totalW = weighted.reduce((s, i) => s + (i.weight ?? 0), 0);
+  if (left > 0 && totalW > 0) {
+    const pool = left;
+    for (const i of weighted) {
+      let share = Math.round(((pool * (i.weight ?? 0)) / totalW) * 100) / 100;
+      if (i.target_cost != null && Number(i.target_cost) > 0) {
+        const room = Math.max(0, Number(i.target_cost) - Number(i.spent ?? 0) - Number(i.saved_amount) - (adds.get(i.id) ?? 0));
+        share = Math.min(share, room);
+      }
+      adds.set(i.id, Math.round(((adds.get(i.id) ?? 0) + share) * 100) / 100);
+      left = Math.round((left - share) * 100) / 100;
+    }
+  }
+  const rankOf = (id: string) => {
+    const i = ordered.findIndex((o) => o.id === id);
+    return i === -1 ? 1e6 : i;
+  };
+  const pots: PotLine[] = items
+    .filter((i) => (adds.get(i.id) ?? 0) > 0 || (i.target_cost != null && Number(i.target_cost) > 0))
+    .map((i) => {
+      const add = adds.get(i.id) ?? 0;
+      const target = Number(i.target_cost ?? 0);
+      const saved = Number(i.saved_amount) + add;
+      return { id: i.id, title: i.title, add, saved, target, fullyFunded: target > 0 && saved + Number(i.spent ?? 0) >= target };
+    })
+    .sort((a, b) => rankOf(a.id) - rankOf(b.id));
   return { pay, bills, billsTotal, afterBills: Math.round((pay - billsTotal) * 100) / 100, pots, unallocated: left };
 }
 

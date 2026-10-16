@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { supabase, type WishlistItem, type FinanceEntry } from '@/lib/supabase/client';
+import { supabase, type WishlistItem, type FinanceEntry, type PotItem } from '@/lib/supabase/client';
+import { potStats } from '@/lib/finance/pots';
 import { PaydayCard } from '@/components/payday-card';
 import { WishlistList } from '@/components/wishlist-list';
 import { computeSavingsBalance } from '@/lib/finance/savings';
@@ -10,6 +11,7 @@ import { Loader2, Gift, Wallet, PiggyBank } from 'lucide-react';
 
 export default function WishlistView() {
   const [items, setItems] = useState<WishlistItem[]>([]);
+  const [potItems, setPotItems] = useState<PotItem[]>([]);
   const [financeEntries, setFinanceEntries] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,10 +19,12 @@ export default function WishlistView() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [itemsRes, financeRes] = await Promise.all([
+    const [itemsRes, financeRes, potRes] = await Promise.all([
       supabase.from('wishlist_items').select('*').order('created_at', { ascending: false }),
       supabase.from('finance_entries').select('*'),
+      supabase.from('pot_items').select('*').order('sort'),
     ]);
+    setPotItems((potRes.data ?? []) as PotItem[]);
     if (itemsRes.error) setError(itemsRes.error.message);
     setItems(itemsRes.data ?? []);
     setFinanceEntries(financeRes.data ?? []);
@@ -40,7 +44,7 @@ export default function WishlistView() {
   }
 
   const wanted = items.filter((i) => i.status === 'active');
-  const totalCost = wanted.reduce((sum, i) => sum + (i.target_cost ? Number(i.target_cost) : 0), 0);
+  const totalCost = wanted.reduce((sum, i) => sum + (potStats(i, potItems).target ?? 0), 0);
   const savingsBalance = computeSavingsBalance(financeEntries);
 
   return (
@@ -98,9 +102,9 @@ export default function WishlistView() {
         </Card>
       </div>
 
-      <PaydayCard items={items} onChanged={fetchAll} />
+      <PaydayCard items={items} potItems={potItems} onChanged={fetchAll} />
 
-      <WishlistList items={items} savingsBalance={savingsBalance} onChanged={fetchAll} />
+      <WishlistList items={items} potItems={potItems} savingsBalance={savingsBalance} onChanged={fetchAll} />
     </div>
   );
 }

@@ -8,3 +8,8 @@ alter table public.pay_settings enable row level security;
 alter table public.bills enable row level security;
 alter table public.payday_runs enable row level security;
 -- RLS: owner-only policies on all three (select/insert/update on pay_settings, all on bills, select/insert on payday_runs).
+-- Pots with checkable sub-items + leftover shares:
+alter table public.wishlist_items add column if not exists leftover_weight int not null default 0;
+create table if not exists public.pot_items (id uuid primary key default gen_random_uuid(), user_id uuid not null default auth.uid(), pot_id uuid not null references public.wishlist_items(id) on delete cascade, name text not null, cost numeric(12,2) not null check (cost >= 0), purchased boolean not null default false, purchased_at timestamptz, sort int not null default 0, created_at timestamptz not null default now());
+alter table public.pot_items enable row level security;
+-- owner-only "own all" policy on pot_items; seeded FTMO/Lucid pots live in the DB only.

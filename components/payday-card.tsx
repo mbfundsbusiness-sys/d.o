@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, type Bill, type PaySettings, type WishlistItem } from '@/lib/supabase/client';
+import { supabase, type Bill, type PaySettings, type PotItem, type WishlistItem } from '@/lib/supabase/client';
+import { potStats } from '@/lib/finance/pots';
 import { buildPlan, daysUntil, nextPayday } from '@/lib/finance/payday';
 import { todayISO } from '@/lib/utils/dates';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +14,7 @@ import { Check, Loader2, Plus, X } from 'lucide-react';
 const gbp = (n: number) => `£${n.toFixed(2)}`;
 
 /** Monthly payday planner: bills first, then pots filled in priority order. Confirming adds the amounts to each pot. */
-export function PaydayCard({ items, onChanged }: { items: WishlistItem[]; onChanged: () => void }) {
+export function PaydayCard({ items, potItems, onChanged }: { items: WishlistItem[]; potItems: PotItem[]; onChanged: () => void }) {
   const [settings, setSettings] = useState<PaySettings | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [dom, setDom] = useState('');
@@ -77,9 +78,12 @@ export function PaydayCard({ items, onChanged }: { items: WishlistItem[]; onChan
       buildPlan(
         payNum,
         bills.map((b) => ({ id: b.id, name: b.name, amount: Number(b.amount) })),
-        active.map((i) => ({ id: i.id, title: i.title, priority: i.priority, target_cost: i.target_cost != null ? Number(i.target_cost) : null, saved_amount: Number(i.saved_amount ?? 0), created_at: i.created_at }))
+        active.map((i) => {
+          const st = potStats(i, potItems);
+          return { id: i.id, title: i.title, priority: i.priority, target_cost: st.target, saved_amount: st.saved, spent: st.spent, weight: Number(i.leftover_weight ?? 0), created_at: i.created_at };
+        })
       ),
-    [payNum, bills, active]
+    [payNum, bills, active, potItems]
   );
 
   async function confirm() {

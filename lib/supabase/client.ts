@@ -596,6 +596,7 @@ export type WishlistItem = {
   notes: string | null;
   status: WishlistStatus;
   saved_amount: number;
+  leftover_weight: number;
   purchased_at: string | null;
   created_at: string;
 };
@@ -698,3 +699,14 @@ export type GhostwriterChatMessage = {
 
 export type PaySettings = { user_id: string; payday_dom: number | null; expected_pay: number | null };
 export type Bill = { id: string; user_id: string; name: string; amount: number; active: boolean };
+
+export type PotItem = {
+  id: string;
+  user_id: string;
+  pot_id: string;
+  name: string;
+  cost: number;
+  purchased: boolean;
+  purchased_at: string | null;
+  sort: number;
+};
