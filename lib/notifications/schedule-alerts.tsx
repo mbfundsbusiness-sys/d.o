@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { supabase, type ScheduleBlock, type UserSettings, type TodoItem, type WorkShift } from '@/lib/supabase/client';
 import { fetchShifts, shiftsOn } from '@/lib/schedule/shifts';
+import { fetchPrayerTimes, type DayPrayerTimes } from '@/lib/schedule/prayer-times';
 import { useAuth } from '@/lib/auth/provider';
 import { londonNow } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
@@ -63,6 +64,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
   const settingsRef = useRef<UserSettings | null>(null);
   const todosRef = useRef<TodoItem[]>([]);
   const shiftsRef = useRef<WorkShift[]>([]);
+  const prayersRef = useRef<DayPrayerTimes>({});
   const firedRef = useRef<Set<string>>(new Set());
 
   const dismiss = useCallback((id: string) => {
@@ -91,6 +93,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
     if (!user) return;
     const todayStr = londonNow().dateISO;
     shiftsRef.current = await fetchShifts(todayStr, todayStr);
+    prayersRef.current = await fetchPrayerTimes(todayStr);
     const [blocksRes, settingsRes, todosRes] = await Promise.all([
       supabase.from('schedule_blocks').select('*'),
       supabase.from('user_settings').select('*').maybeSingle(),
@@ -108,7 +111,7 @@ export function ScheduleAlertsProvider({ children }: { children: React.ReactNode
     // block here; it's now a real schedule_blocks row (source='auto',
     // activity_type='prayer', written by lib/prayer/schedule-sync.ts) and
     // gets its alert from this same loop like every other module.
-    const today = effectiveBlocksForDay(blocksRef.current, settingsRef.current, now.dayOfWeek, shiftsOn(shiftsRef.current, now.dateISO));
+    const today = effectiveBlocksForDay(blocksRef.current, settingsRef.current, now.dayOfWeek, shiftsOn(shiftsRef.current, now.dateISO), prayersRef.current);
 
     for (const block of today) {
       const minsUntil = block.startMin - now.minutesOfDay;

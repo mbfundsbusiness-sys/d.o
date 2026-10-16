@@ -36,9 +36,19 @@ export function effectiveBlocksForDay(
   settings: UserSettings | null,
   dayOfWeek: number,
   /** Work shifts that fall on THIS date (callers filter by date). Shifts are fixed and win clashes. */
-  shifts: WorkShift[] = []
+  shifts: WorkShift[] = [],
+  /** Real prayer times for this date; replace the template's fixed prayer times when given. */
+  prayerTimes: Partial<Record<string, string>> = {}
 ): EffectiveBlock[] {
-  const merged = effectiveTemplateBlocks(blocks, settings, dayOfWeek);
+  const merged = effectiveTemplateBlocks(blocks, settings, dayOfWeek)
+    .map((b) => {
+      const real = b.activity_type === 'prayer' ? prayerTimes[b.label.toLowerCase()] : undefined;
+      if (!real) return b;
+      const startMin = minutesOfDay(real);
+      const endMin = startMin + (b.endMin - b.startMin);
+      return { ...b, startMin, endMin, start_time: minutesToHM(startMin), end_time: minutesToHM(endMin) };
+    })
+    .sort((a, b) => a.startMin - b.startMin);
   if (shifts.length === 0) return moveWakeEarlier(merged, []);
 
   const shiftBlocks = shifts.map<EffectiveBlock>((sh) => ({

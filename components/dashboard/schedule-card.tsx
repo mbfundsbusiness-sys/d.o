@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { CalendarClock, AlertTriangle } from 'lucide-react';
 import { supabase, type ScheduleBlock, type RecurringCommitment, type WorkShift } from '@/lib/supabase/client';
 import { fetchShifts, shiftsOn } from '@/lib/schedule/shifts';
+import { fetchPrayerTimes, type DayPrayerTimes } from '@/lib/schedule/prayer-times';
 import { useUserSettings } from '@/lib/settings/use-user-settings';
 import { DashCard } from '@/components/ui/glass-card';
 import { londonNow } from '@/lib/utils/dates';
@@ -18,6 +19,7 @@ export function ScheduleCard() {
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [commitments, setCommitments] = useState<RecurringCommitment[]>([]);
   const [shifts, setShifts] = useState<WorkShift[]>([]);
+  const [prayers, setPrayers] = useState<DayPrayerTimes>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => londonNow());
@@ -25,11 +27,13 @@ export function ScheduleCard() {
   useEffect(() => {
     (async () => {
       const todayStr = londonNow().dateISO;
-      const [b, c, sh] = await Promise.all([
+      const [b, c, sh, pt] = await Promise.all([
         supabase.from('schedule_blocks').select('*').eq('day_of_week', londonNow().dayOfWeek),
         supabase.from('recurring_commitments').select('*').eq('active', true),
         fetchShifts(todayStr, todayStr),
+        fetchPrayerTimes(todayStr),
       ]);
+      setPrayers(pt);
       setShifts(sh);
       if (b.error) setError(b.error.message);
       setBlocks((b.data ?? []) as ScheduleBlock[]);
@@ -40,7 +44,7 @@ export function ScheduleCard() {
     return () => clearInterval(t);
   }, []);
 
-  const today = effectiveBlocksForDay(blocks, settings, now.dayOfWeek, shiftsOn(shifts, now.dateISO));
+  const today = effectiveBlocksForDay(blocks, settings, now.dayOfWeek, shiftsOn(shifts, now.dateISO), prayers);
   const insights = dayInsights(commitments as PlannerCommitment[], blocks, now.dayOfWeek, now.dateISO);
 
   return (

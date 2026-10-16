@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { londonNow } from '@/lib/utils/dates';
 import { blockKind, BLOCK_LOOK } from '@/lib/schedule/colors';
 import { cn } from '@/lib/utils';
+import { fetchPrayerTimes, type DayPrayerTimes } from '@/lib/schedule/prayer-times';
 import { effectiveBlocksForDay, needsJummahTime, type EffectiveBlock } from '@/lib/schedule/effective';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -28,13 +29,19 @@ export function ScheduleToday({
   shifts?: WorkShift[];
 }) {
   const [now, setNow] = useState(() => londonNow());
+  const [prayers, setPrayers] = useState<DayPrayerTimes>({});
+  const dateISO = now.dateISO;
+
+  useEffect(() => {
+    void fetchPrayerTimes(dateISO).then(setPrayers);
+  }, [dateISO]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(londonNow()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const today = effectiveBlocksForDay(blocks, settings, now.dayOfWeek, shiftsOn(shifts, now.dateISO));
+  const today = effectiveBlocksForDay(blocks, settings, now.dayOfWeek, shiftsOn(shifts, now.dateISO), prayers);
   const current = today.find((b) => now.minutesOfDay >= b.startMin && now.minutesOfDay < b.endMin) ?? null;
   const next = today.find((b) => b.startMin > now.minutesOfDay) ?? null;
 
