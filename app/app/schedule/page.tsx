@@ -94,7 +94,7 @@ export default function SchedulePage() {
   }
 
   function handleExportIcs() {
-    const ics = buildScheduleIcs(blocks, settings);
+    const ics = buildScheduleIcs(blocks, settings, shifts);
     downloadIcs('dedication-optimiser-schedule.ics', ics);
   }
 

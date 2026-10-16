@@ -1,4 +1,4 @@
-import type { ScheduleBlock, UserSettings } from '@/lib/supabase/client';
+import type { ScheduleBlock, UserSettings, WorkShift } from '@/lib/supabase/client';
 import { londonNow } from '@/lib/utils/dates';
 import { effectiveBlocksForDay } from '@/lib/schedule/effective';
 
@@ -62,7 +62,7 @@ function utcStamp(): string {
  * Build an iCalendar (.ics) file with one weekly-recurring VEVENT per schedule
  * block, including the derived Friday Jummah block. All times are Europe/London.
  */
-export function buildScheduleIcs(blocks: ScheduleBlock[], settings: UserSettings | null): string {
+export function buildScheduleIcs(blocks: ScheduleBlock[], settings: UserSettings | null, shifts: WorkShift[] = []): string {
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -90,6 +90,20 @@ export function buildScheduleIcs(blocks: ScheduleBlock[], settings: UserSettings
         'END:VEVENT'
       );
     }
+  }
+
+  // Dated DPD shifts: one-off events (no RRULE).
+  for (const sh of shifts) {
+    const [y, m, d] = sh.shift_date.split('-').map(Number);
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:shift-${sh.id}@dedication-optimiser`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;TZID=Europe/London:${localDateTime(y, m, d, sh.start_time.slice(0, 5))}`,
+      `DTEND;TZID=Europe/London:${localDateTime(y, m, d, sh.end_time.slice(0, 5))}`,
+      `SUMMARY:${escapeText(sh.title)}`,
+      'END:VEVENT'
+    );
   }
 
   lines.push('END:VCALENDAR');
