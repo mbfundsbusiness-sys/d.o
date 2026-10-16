@@ -39,7 +39,7 @@ export function effectiveBlocksForDay(
   shifts: WorkShift[] = []
 ): EffectiveBlock[] {
   const merged = effectiveTemplateBlocks(blocks, settings, dayOfWeek);
-  if (shifts.length === 0) return merged;
+  if (shifts.length === 0) return moveWakeEarlier(merged, []);
 
   const shiftBlocks = shifts.map<EffectiveBlock>((sh) => ({
     id: `shift-${sh.id}`,
@@ -60,7 +60,34 @@ export function effectiveBlocksForDay(
     const hit = shiftBlocks.find((sh) => b.startMin < sh.endMin && b.endMin > sh.startMin);
     return hit ? { ...b, clashesWith: hit.label } : b;
   });
-  return [...flagged, ...shiftBlocks].sort((a, b) => a.startMin - b.startMin);
+  return moveWakeEarlier([...flagged, ...shiftBlocks], shiftBlocks).sort((a, b) => a.startMin - b.startMin);
+}
+
+/** Wake this long before the day's first lecture or shift (e.g. 09:30 lecture -> 07:30). */
+export const WAKE_LEAD_MIN = 120;
+const isWake = (b: EffectiveBlock) => /^wake/i.test(b.label);
+const isLecture = (b: EffectiveBlock) => /^uni lecture/i.test(b.label);
+
+/**
+ * The template wake time (09:00) is only a default. When a lecture or shift starts
+ * early, the wake block moves earlier so the schedule never says to wake after the
+ * day has already started. It never moves later than the template.
+ */
+function moveWakeEarlier(blocks: EffectiveBlock[], shiftBlocks: EffectiveBlock[]): EffectiveBlock[] {
+  const wake = blocks.find(isWake);
+  if (!wake) return blocks;
+  const firstStarts = [...blocks.filter(isLecture), ...shiftBlocks].map((b) => b.startMin);
+  if (firstStarts.length === 0) return blocks;
+  const target = Math.max(0, Math.min(...firstStarts) - WAKE_LEAD_MIN);
+  if (target >= wake.startMin) return blocks;
+  const dur = wake.endMin - wake.startMin;
+  return blocks
+    .map((b) =>
+      b === wake
+        ? { ...b, startMin: target, endMin: target + dur, start_time: minutesToHM(target), end_time: minutesToHM(target + dur) }
+        : b
+    )
+    .sort((a, b) => a.startMin - b.startMin);
 }
 
 function effectiveTemplateBlocks(
