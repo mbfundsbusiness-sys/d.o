@@ -23,7 +23,7 @@ export const ROADMAP_PHASES: RoadmapPhase[] = [
     description:
       'Establish daily rhythm, stabilise sleep, set up the tracking habit, and lock in the streak rule. No capital deployment yet — just structure.',
     goals: [
-      'Consistent wake time at 9:00am',
+      'Wake time logged every day (09:00 default, earlier for lectures and shifts)',
       'Daily anchor logging becomes automatic',
       'Streak rule met daily: wake log, 1h BotCouncil, 1h learning, 30min gym',
       'Trading plan documented and reviewed daily',

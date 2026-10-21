@@ -20,7 +20,7 @@ export default function WishlistView() {
     setLoading(true);
     setError(null);
     const [itemsRes, financeRes, potRes] = await Promise.all([
-      supabase.from('wishlist_items').select('*').order('created_at', { ascending: false }),
+      supabase.from('wishlist_items').select('*').order('created_at', { ascending: true }),
       supabase.from('finance_entries').select('*'),
       supabase.from('pot_items').select('*').order('sort'),
     ]);

@@ -66,7 +66,7 @@ export function effectiveBlocksForDay(
   // Template blocks that overlap a shift are kept (so a lecture on a work day is
   // still visible) but flagged. Prayers are never flagged — they are fixed by the sun.
   const flagged = merged.map((b) => {
-    if (b.activity_type === 'prayer' || b.activity_type === 'trading') return b; // trading can run during a shift
+    if (b.activity_type === 'prayer' || b.activity_type === 'trading' || isWake(b)) return b; // trading can run during a shift; wake moves before it
     const hit = shiftBlocks.find((sh) => b.startMin < sh.endMin && b.endMin > sh.startMin);
     return hit ? { ...b, clashesWith: hit.label } : b;
   });

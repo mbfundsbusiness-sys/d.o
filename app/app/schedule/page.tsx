@@ -104,8 +104,8 @@ export default function SchedulePage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
           <p className="text-sm text-muted-foreground">
-            Your weekly routine in Europe/London time. In-app alerts fire 15 minutes before and
-            at the start of each block while the app is open.
+            Your weekly routine in Europe/London time. Your phone (ntfy) gets the alerts even when the app is
+            closed: shifts and lectures 15 minutes before and at the start, everything else at the start.
           </p>
         </div>
         <div className="flex items-center gap-2">

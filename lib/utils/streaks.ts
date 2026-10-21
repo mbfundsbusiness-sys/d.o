@@ -70,6 +70,8 @@ export type GoalStreak = {
   qualifyingLast30: number;
 };
 
+export const MAX_SESSION_MIN = 240;
+
 export const EMPTY_TOTALS: DayTotals = { wakeLogged: false, workMin: 0, learningMin: 0, gymMin: 0 };
 
 export function dayQualifies(t: DayTotals, g: Goals = GOALS): boolean {
@@ -91,7 +93,8 @@ export function buildDayTotals(input: GoalInputs): Map<string, DayTotals> {
   }
   const add = (rows: SessionRow[], key: 'workMin' | 'learningMin' | 'gymMin') => {
     for (const r of rows) {
-      const mins = Number(r.duration_min ?? 0);
+      // A timer left running overnight shouldn't count as 20h of work: cap one session at 4h.
+      const mins = Math.min(Number(r.duration_min ?? 0), MAX_SESSION_MIN);
       if (mins > 0) at(londonDateISO(r.started_at))[key] += mins;
     }
   };

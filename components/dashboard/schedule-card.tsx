@@ -88,7 +88,7 @@ export function ScheduleCard() {
           </p>
         ))}
         <div className="mt-auto flex flex-wrap gap-3 pt-1 text-[11px] text-muted-foreground">
-          {Object.values(BLOCK_LOOK).map((l) => (
+          {Array.from(new Set(today.map((b) => blockKind(b)))).map((k) => BLOCK_LOOK[k]).map((l) => (
             <span key={l.label} className="flex items-center gap-1">
               <span className={cn('h-2 w-2 rounded-full', l.dot)} />
               {l.label}

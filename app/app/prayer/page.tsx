@@ -189,9 +189,8 @@ export default function PrayerPage() {
       <div className="rounded-lg border border-border bg-secondary/30 px-4 py-3">
         <p className="text-xs text-muted-foreground">
           Times below are calculated for London (Moonsighting Committee method) and written into
-          your Schedule automatically each day, with the same 15-minutes-before in-app alert as
-          everything else — but it only fires while the app is open in a tab; a web app can't
-          reliably notify you while your phone is locked. Fridays swap Dhuhr for your Jummah time
+          your Schedule automatically each day, and your phone (ntfy) gets an alert at each prayer time,
+          even when the app is closed. Fridays swap Dhuhr for your Jummah time
           from Settings.
         </p>
         {timesError && <p className="mt-2 text-xs text-destructive">{timesError}</p>}

@@ -255,8 +255,8 @@ export default function SettingsPage() {
             also shown while the tab is open.
           </p>
           <p className="text-muted-foreground">
-            Push notifications that reach you when the app is closed or your device is locked
-            are a separate feature and are not available yet.
+            Phone alerts that reach you when the app is closed come through the ntfy app
+            (they run from the database every minute, independent of this page).
           </p>
           <div className="flex items-center gap-3 pt-1">
             {perm === 'unsupported' ? (

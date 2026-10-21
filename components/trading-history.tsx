@@ -1,5 +1,7 @@
 'use client';
 
+const fmtMin = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${Math.round(m % 60)}m` : `${Math.round(m)} min`);
+
 import { supabase, type TradingSession } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,7 +53,7 @@ export function TradingHistory({ sessions, onChanged }: { sessions: TradingSessi
                     {s.in_plan ? 'In plan' : 'Off plan'}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">{s.duration_min} min</p>
+                <p className="text-xs text-muted-foreground">{fmtMin(Number(s.duration_min ?? 0))}</p>
                 {s.note && <p className="mt-1 text-xs text-muted-foreground">{s.note}</p>}
               </div>
             </div>
