@@ -89,7 +89,7 @@ export function ChatView({
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4 md:px-6">
+        <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-background/50 px-4 backdrop-blur-md md:px-6">
           <h1 className="text-sm font-medium">{title}</h1>
           <button
             type="button"
@@ -143,7 +143,7 @@ export function ChatView({
         </div>
       </div>
 
-      <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border xl:block">
+      <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-background/70 backdrop-blur-md xl:block">
         <Panel refreshKey={refreshKey} ask={ask} />
       </aside>
       <Sheet open={panelOpen} onOpenChange={setPanelOpen}>

@@ -57,7 +57,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex h-[100dvh] overflow-hidden">
-      <aside className="hidden w-60 shrink-0 border-r border-border bg-card/40 md:block">
+      <aside className="hidden w-60 shrink-0 border-r border-border bg-background/70 backdrop-blur-md md:block">
         <Nav />
       </aside>
       {open && (
