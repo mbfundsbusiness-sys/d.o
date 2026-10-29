@@ -1,45 +1,25 @@
 'use client';
 
-import { useAuth } from '@/lib/auth/provider';
-import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { AppShell } from '@/components/app-shell';
-import { TimerProvider } from '@/lib/timer/context';
-import { ScheduleAlertsProvider } from '@/lib/notifications/schedule-alerts';
+import { useAuth } from '@/lib/auth/provider';
+import { Shell } from '@/components/chat/shell';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !session) {
-      router.replace('/login');
-    }
-  }, [session, loading, router]);
+    if (!loading && !session) router.replace('/login');
+  }, [loading, session, router]);
 
-  if (loading) {
+  if (loading || !session) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex h-[100dvh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
-
-  if (!session) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  return (
-    <TimerProvider>
-      <ScheduleAlertsProvider>
-        <AppShell currentPath={pathname}>{children}</AppShell>
-      </ScheduleAlertsProvider>
-    </TimerProvider>
-  );
+  return <Shell>{children}</Shell>;
 }

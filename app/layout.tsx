@@ -2,13 +2,12 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth/provider';
-import { SiteBackdrop } from '@/components/site-backdrop';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Dedication Optimiser',
-  description: 'Your personal life operating system',
+  title: 'D.O.',
+  description: 'Your EA, schedule and money, in one chat',
 };
 
 export default function RootLayout({
@@ -19,7 +18,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.className} bg-background text-foreground antialiased`}>
-        <SiteBackdrop />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

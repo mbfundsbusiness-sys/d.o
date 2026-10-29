@@ -209,3 +209,19 @@ export function minutesToHM(mins: number): string {
   const m = clamped % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
+
+/** London wall-clock date + "HH:MM" -> UTC ISO timestamp (handles BST). */
+export function londonToUtcISO(dateISO: string, hm = '23:59'): string {
+  const [y, mo, d] = dateISO.split('-').map(Number);
+  const [h, mi] = hm.split(':').map(Number);
+  const guess = Date.UTC(y, mo - 1, d, h, mi);
+  // London is UTC+0 or UTC+1; take the offset at the guessed instant, then re-check once.
+  const offsetAt = (t: number) => {
+    const n = londonNow(new Date(t));
+    const asUtc = Date.UTC(Number(n.dateISO.slice(0, 4)), Number(n.dateISO.slice(5, 7)) - 1, Number(n.dateISO.slice(8, 10)), n.hour, n.minute);
+    return asUtc - t;
+  };
+  let t = guess - offsetAt(guess);
+  t = guess - offsetAt(t);
+  return new Date(t).toISOString();
+}

@@ -1,4 +1,4 @@
-import type { PotItem, WishlistItem } from '@/lib/supabase/client';
+import type { PotItem, WishlistItem } from '@/lib/supabase/types';
 
 export type PotStats = {
   /** Sub-item total when the pot has sub-items, otherwise the pot's own target (null = open-ended). */
