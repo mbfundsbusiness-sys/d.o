@@ -1,7 +1,7 @@
 'use client';
 
 // GridScan from React Bits (https://reactbits.dev, github.com/DavidHDev/react-bits),
-// vendored with one addition: the onSweep callback (fires as each scan sweep starts). Licensed MIT + Commons Clause by its authors.
+// vendored unchanged apart from this header. Licensed MIT + Commons Clause by its authors.
 
 import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes } from 'react';
 
@@ -40,8 +40,6 @@ export interface GridScanProps extends Omit<HTMLAttributes<HTMLDivElement>, 'sty
   lightMode?: boolean;
   dpr?: number;
   style?: CSSProperties;
-  /** Called with the sweep count each time a scan sweep starts. */
-  onSweep?: (sweep: number) => void;
 }
 
 type Settings = {
@@ -543,7 +541,6 @@ export const GridScan = ({
   dpr,
   className = '',
   style,
-  onSweep,
   ...rest
 }: GridScanProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -580,8 +577,6 @@ export const GridScan = ({
   };
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
-  const onSweepRef = useRef(onSweep);
-  onSweepRef.current = onSweep;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -675,7 +670,6 @@ export const GridScan = ({
       scan.start = time;
       scan.waiting = false;
       scan.sweeps += 1;
-      onSweepRef.current?.(scan.sweeps);
     };
 
     const updateScan = (s: Settings, roomDepth: number) => {

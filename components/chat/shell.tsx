@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Briefcase, GraduationCap, LogOut, Menu, PoundSterling, Sparkles, X } from 'lucide-react';
-import { ASSISTANT_NAV } from '@/lib/assistants/nav';
+import { ASSISTANT_NAV, assistantForPath } from '@/lib/assistants/nav';
+import { SiteBackdrop } from '@/components/backdrop/site-backdrop';
 import { useAuth } from '@/lib/auth/provider';
 import { cn } from '@/lib/utils';
 
@@ -31,7 +32,7 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
                 active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
               )}
             >
-              <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+              <Icon className="mt-0.5 h-4 w-4 shrink-0" style={active ? { color: a.colour } : undefined} />
               <span className="flex flex-col">
                 <span className="flex items-center gap-2">
                   {a.name}
@@ -55,9 +56,11 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const path = usePathname();
   return (
     <div className="flex h-[100dvh] overflow-hidden">
-      <aside className="hidden w-60 shrink-0 border-r border-border bg-background/70 backdrop-blur-md md:block">
+      <SiteBackdrop colour={assistantForPath(path).colour} />
+      <aside className="hidden w-60 shrink-0 border-r border-border bg-black md:block">
         <Nav />
       </aside>
       {open && (
