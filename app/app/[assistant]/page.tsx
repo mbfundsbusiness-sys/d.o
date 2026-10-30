@@ -3,6 +3,7 @@
 import { notFound } from 'next/navigation';
 import { ChatView } from '@/components/chat/chat-view';
 import { FinancePanel } from '@/components/panels/finance-panel';
+import { ScholarshipPanel } from '@/components/panels/scholarship-panel';
 import { ASSISTANT_NAV } from '@/lib/assistants/nav';
 
 export default function AssistantPage({ params }: { params: { assistant: string } }) {
@@ -22,13 +23,24 @@ export default function AssistantPage({ params }: { params: { assistant: string 
     );
   }
 
+  if (a.key === 'scholarship') {
+    return (
+      <ChatView
+        assistant="scholarship"
+        title="Scholarship"
+        placeholder="Ask about a module, add coursework or an exam, or start a language lesson…"
+        panelTitle="Modules"
+        Panel={ScholarshipPanel}
+        starters={['Explain nodal analysis with an example', 'Circuits lab report due next Friday, about 4 hours', 'Quiz me on complex numbers', 'Start my next language lesson']}
+      />
+    );
+  }
+
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
       <h1 className="text-lg font-medium">{a.name}</h1>
       <p className="max-w-sm text-sm text-muted-foreground">
-        {a.key === 'scholarship'
-          ? 'Coursework and exam help, your uni tutors and timetable, and language modules. Coming in the next phase.'
-          : 'Trading notes as a slideshow and BotCouncil status. Coming in a later phase.'}
+        Trading notes as a slideshow and BotCouncil status. Coming in a later phase.
       </p>
     </div>
   );

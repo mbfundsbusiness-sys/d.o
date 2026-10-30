@@ -4,6 +4,7 @@ import { planDay, type PlanResult } from '@/lib/schedule/planner';
 import { mondayOf } from '@/lib/schedule/shifts';
 import { addDaysISO, londonNow, minutesToHM } from '@/lib/utils/dates';
 import { loadDay, openTodos } from '@/lib/server/data';
+import { studyInputs } from '@/lib/server/scholarship';
 
 /**
  * (Re)plans one day. The EA's own not-yet-started blocks are replaced; anything
@@ -19,9 +20,10 @@ export async function replanDay(db: SupabaseClient, userId: string, date: string
   await clear;
 
   const monday = mondayOf(date);
-  const [day, todos, gym] = await Promise.all([
+  const [day, todos, studied, gym] = await Promise.all([
     loadDay(db, userId, date, rules),
     openTodos(db, userId),
+    studyInputs(db, userId, date),
     db
       .from('plan_items')
       .select('id', { count: 'exact', head: true })
@@ -33,7 +35,7 @@ export async function replanDay(db: SupabaseClient, userId: string, date: string
       .neq('plan_date', date),
   ]);
 
-  const result = planDay({ day, rules, todos, gymSessionsThisWeek: gym.count ?? 0, fromMin });
+  const result = planDay({ day, rules, todos, gymSessionsThisWeek: gym.count ?? 0, fromMin, ...studied });
   if (result.items.length) {
     await db.from('plan_items').insert(
       result.items.map((p) => ({
@@ -44,6 +46,7 @@ export async function replanDay(db: SupabaseClient, userId: string, date: string
         title: p.title,
         kind: p.kind,
         todo_id: p.todo_id ?? null,
+        module_key: p.module_key ?? null,
         source: 'ea',
       }))
     );

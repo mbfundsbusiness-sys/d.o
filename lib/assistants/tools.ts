@@ -17,6 +17,9 @@ const hm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('24h HH:MM, Lo
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('YYYY-MM-DD, London');
 const kind = z.enum(['exams', 'coursework', 'study', 'trading', 'botcouncil', 'gym', 'language', 'task', 'other']);
 const todoCategory = z.enum(['exams', 'coursework', 'trading', 'botcouncil', 'gym', 'language', 'task', 'other']);
+const moduleKey = z
+  .enum(['programming', 'circuits', 'maths', 'engsci', 'language'])
+  .describe('uni module (programming, circuits, maths, engsci) or the language course');
 
 const fail = (error: string) => ({ error });
 const checkSpan = (start: string, end: string) => (minutesOfDay(end) > minutesOfDay(start) ? null : 'end must be after start (no crossing midnight)');
@@ -139,13 +142,14 @@ export function todoTools({ db, userId }: ToolCtx) {
         priority: z.number().int().min(1).max(5).default(3).describe('1 = most important'),
         estimate_min: z.number().int().min(5).max(600).optional(),
         notes: z.string().optional(),
+        module_key: moduleKey.optional(),
       }),
-      execute: async ({ title, due, category, priority, estimate_min, notes }) => {
+      execute: async ({ title, due, category, priority, estimate_min, notes, module_key }) => {
         const due_at = dueISO(due);
         if (due && due_at === undefined) return fail('due must be YYYY-MM-DD or YYYY-MM-DD HH:MM');
         const { data, error } = await db
           .from('todo_items')
-          .insert({ user_id: userId, title, due_at: due_at ?? null, category, priority, estimate_min: estimate_min ?? null, notes: notes ?? null })
+          .insert({ user_id: userId, title, due_at: due_at ?? null, category, priority, estimate_min: estimate_min ?? null, notes: notes ?? null, module_key: module_key ?? null })
           .select('id')
           .single();
         return error ? fail(error.message) : { ok: true, id: data.id };
@@ -160,6 +164,7 @@ export function todoTools({ db, userId }: ToolCtx) {
         category: todoCategory.optional(),
         priority: z.number().int().min(1).max(5).optional(),
         estimate_min: z.number().int().min(5).max(600).nullable().optional(),
+        module_key: moduleKey.nullable().optional(),
         completed: z.boolean().optional(),
       }),
       execute: async ({ id, due, completed, ...rest }) => {
@@ -183,7 +188,7 @@ export function todoTools({ db, userId }: ToolCtx) {
       execute: async () => {
         const { data } = await db
           .from('todo_items')
-          .select('id, title, due_at, category, priority, estimate_min')
+          .select('id, title, due_at, category, priority, estimate_min, module_key')
           .eq('user_id', userId)
           .eq('completed', false)
           .order('due_at', { ascending: true, nullsFirst: false })
@@ -373,6 +378,86 @@ export function moneyTools({ db, userId }: ToolCtx) {
       execute: async (p) => {
         const { error } = await db.from('pay_settings').upsert({ user_id: userId, ...p, updated_at: new Date().toISOString() });
         return error ? fail(error.message) : { ok: true };
+      },
+    }),
+  };
+}
+
+export function languageTools({ db, userId }: ToolCtx) {
+  const focus = z.enum(['vocabulary', 'grammar', 'listening', 'speaking', 'reading']);
+  return {
+    get_language_module: tool({
+      description: 'Load a language module (lesson) with its full content, to teach it in the chat.',
+      inputSchema: z.object({ id: z.string() }),
+      execute: async ({ id }) => {
+        const { data } = await db
+          .from('language_modules')
+          .select('id, language, module_number, title, focus_area, content_json, completed')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .maybeSingle();
+        return data ?? fail('no such module');
+      },
+    }),
+    list_language_modules: tool({
+      description: 'List all language modules in order, with which are done.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        const { data } = await db
+          .from('language_modules')
+          .select('id, language, module_number, title, focus_area, completed')
+          .eq('user_id', userId)
+          .order('module_number');
+        return data ?? [];
+      },
+    }),
+    complete_language_module: tool({
+      description: 'Mark a language module done once the user has worked through it and got most of the practice right.',
+      inputSchema: z.object({ id: z.string(), completed: z.boolean().default(true) }),
+      execute: async ({ id, completed }) => {
+        const { error, count } = await db
+          .from('language_modules')
+          .update({ completed, completed_at: completed ? new Date().toISOString() : null }, { count: 'exact' })
+          .eq('id', id)
+          .eq('user_id', userId);
+        return error ? fail(error.message) : count ? { ok: true } : fail('no such module');
+      },
+    }),
+    add_language_module: tool({
+      description:
+        'Write the next language module when the user has finished the existing ones (or asks for one on a topic). Build on what earlier modules covered; keep it to one focused lesson.',
+      inputSchema: z.object({
+        language: z.string().min(1).describe('e.g. "Spanish", "Italian"; match the existing course name'),
+        title: z.string().min(1),
+        focus_area: focus,
+        content: z.object({
+          intro: z.string(),
+          words: z
+            .array(z.object({ word: z.string(), translation: z.string(), example: z.string(), example_translation: z.string() }))
+            .max(15)
+            .optional(),
+          rule: z.string().optional(),
+          speaking_prompts: z.array(z.string()).max(6).optional(),
+          reading_text: z.string().optional(),
+          reading_questions: z.array(z.object({ question: z.string(), answer: z.string() })).max(6).optional(),
+          tips: z.array(z.string()).max(6).optional(),
+        }),
+      }),
+      execute: async ({ language, title, focus_area, content }) => {
+        const { data: last } = await db
+          .from('language_modules')
+          .select('module_number')
+          .eq('user_id', userId)
+          .ilike('language', language)
+          .order('module_number', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const { data, error } = await db
+          .from('language_modules')
+          .insert({ user_id: userId, language, module_number: (last?.module_number ?? 0) + 1, title, focus_area, content_json: content })
+          .select('id, module_number')
+          .single();
+        return error ? fail(error.message) : { ok: true, ...data };
       },
     }),
   };

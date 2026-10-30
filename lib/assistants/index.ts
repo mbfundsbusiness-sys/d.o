@@ -5,9 +5,11 @@ import { describeRules, type Rules } from '@/lib/rules';
 import { describeDay } from '@/lib/schedule/day';
 import { loadDay, loadRules, openTodos, upcomingShifts } from '@/lib/server/data';
 import { describeFinance, financeSummary } from '@/lib/server/finance';
+import { describeScholarship, scholarshipSummary } from '@/lib/server/scholarship';
+import { UNI_MODULES } from '@/lib/uni/modules';
 import { addDaysISO, londonNow } from '@/lib/utils/dates';
 import { ASSISTANT_NAV } from '@/lib/assistants/nav';
-import { moneyTools, nowLine, ruleTools, scheduleTools, shiftTools, todoTools, type ToolCtx } from '@/lib/assistants/tools';
+import { languageTools, moneyTools, nowLine, ruleTools, scheduleTools, shiftTools, todoTools, type ToolCtx } from '@/lib/assistants/tools';
 
 export const isAssistantKey = (k: unknown): k is AssistantKey => ASSISTANT_NAV.some((a) => a.key === k && a.ready);
 
@@ -73,6 +75,43 @@ Finance data:
 ${finance}`;
 }
 
+function scholarshipPrompt(rules: Rules, data: string, today: string) {
+  return `You are the Scholarship assistant in D.O.: the user's tutor for their BEng Electrical & Electronic Engineering modules and their language course, and the keeper of their coursework and exam deadlines.
+${ABOUT_USER}
+
+Tutoring (uni modules):
+- Work out which module a question belongs to and tutor in that module's style (briefs below). Say which module you're treating it as if it's ambiguous.
+- Teach, don't just answer: explain the idea, work one example, then check understanding with a short question.
+- For coursework or anything assessed, give method and hints before full solutions, and never invent results, references or data.
+- Show equations step by step with units and sanity-check answers. Plain-text maths that reads easily.
+- If unsure or the question is ambiguous, say so or ask instead of guessing.
+
+Deadlines and study time:
+- Every coursework or exam the user mentions becomes a to-do with category "coursework" or "exams", the right module_key, a due date and an estimate (ask if they don't say). That is what makes the planner give it time.
+- Study time is shared out automatically: modules with sooner deadlines get more, but every module gets hours each week. After adding or changing a deadline, re-plan today (replan_day) so the plan reflects it.
+- Lectures are fixed and can't be moved from chat.
+
+Language course:
+- Teach one module at a time in the chat: load it (get_language_module), teach the words or rule in small chunks, then quiz the user (translation both ways, fill the blank, short speaking prompts written out). Correct gently and explain mistakes.
+- When they get most of the practice right, mark the module done (complete_language_module). When all modules are done, write the next one (add_language_module), building on what came before.
+
+${STYLE}
+
+${nowLine()}
+
+Module briefs:
+${UNI_MODULES.map((m) => `- ${m.key}: ${m.brief}`).join('\n')}
+
+Rules:
+${describeRules(rules)}
+
+Today's plan:
+${today}
+
+Modules, deadlines and study (last 7 days):
+${data}`;
+}
+
 export async function buildAssistant(
   key: AssistantKey,
   db: SupabaseClient,
@@ -87,6 +126,15 @@ export async function buildAssistant(
     return {
       system: financePrompt(rules, describeFinance(summary)),
       tools: { ...shiftTools(ctx), ...moneyTools(ctx), ...ruleTools(ctx) },
+    };
+  }
+
+  if (key === 'scholarship') {
+    const [summary, today] = await Promise.all([scholarshipSummary(db, userId, now.dateISO), loadDay(db, userId, now.dateISO, rules)]);
+    const { replan_day, get_day, mark_block } = scheduleTools(ctx);
+    return {
+      system: scholarshipPrompt(rules, describeScholarship(summary), describeDay(today, now.minutesOfDay)),
+      tools: { ...todoTools(ctx), ...languageTools(ctx), replan_day, get_day, mark_block, ...ruleTools(ctx) },
     };
   }
 

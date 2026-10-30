@@ -104,8 +104,12 @@ export type TodoItem = {
   /** 1 = most important .. 5 = least. */
   priority: number;
   estimate_min: number | null;
+  /** The uni module (or the language course) this belongs to. */
+  module_key: StudyKey | null;
   created_at: string;
 };
+
+export type StudyKey = 'programming' | 'circuits' | 'maths' | 'engsci' | 'language';
 
 export type PlanKind = 'exams' | 'coursework' | 'study' | 'trading' | 'botcouncil' | 'gym' | 'language' | 'task' | 'other';
 export type PlanStatus = 'planned' | 'done' | 'skipped' | 'dropped';
@@ -122,6 +126,7 @@ export type PlanItem = {
   status: PlanStatus;
   source: 'ea' | 'user';
   todo_id: string | null;
+  module_key: StudyKey | null;
   note: string | null;
   done_at: string | null;
   created_at: string;

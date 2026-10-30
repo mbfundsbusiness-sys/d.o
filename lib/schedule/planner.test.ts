@@ -14,7 +14,7 @@ const shift = (date: string, start: string, end: string): WorkShift => ({
 });
 const todo = (over: Partial<TodoItem>): TodoItem => ({
   id: 't1', user_id: 'u', title: 'Lab report', notes: null, due_at: null, completed: false, completed_at: null,
-  category: 'coursework', priority: 3, estimate_min: 120, created_at: '', ...over,
+  category: 'coursework', priority: 3, estimate_min: 120, module_key: null, created_at: '', ...over,
 });
 
 const THU = '2026-10-29'; // Thursday: three lectures
@@ -92,7 +92,7 @@ describe('planner', () => {
 
   it('re-plans work whose block was missed', () => {
     const missed = { id: 'm', user_id: 'u', plan_date: TUE, start_time: '10:00', end_time: '11:00', title: 'BotCouncil', kind: 'botcouncil' as const,
-      status: 'planned' as const, source: 'ea' as const, todo_id: null, note: null, done_at: null, created_at: '', updated_at: '' };
+      status: 'planned' as const, source: 'ea' as const, todo_id: null, module_key: null, note: null, done_at: null, created_at: '', updated_at: '' };
     const d = day(TUE, DEFAULT_RULES, { plan: [missed] });
     const later = planDay({ day: d, rules: DEFAULT_RULES, todos: [], gymSessionsThisWeek: 0, fromMin: 12 * 60 });
     expect(later.items.some((i) => i.kind === 'botcouncil')).toBe(true);

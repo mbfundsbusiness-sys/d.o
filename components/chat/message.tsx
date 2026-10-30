@@ -28,6 +28,10 @@ const TOOL_LABELS: Record<string, string> = {
   update_pot_item: 'Updated a pot item',
   set_pay: 'Updated pay settings',
   set_rule: 'Changed a rule',
+  get_language_module: 'Opened a language module',
+  list_language_modules: 'Checked language modules',
+  complete_language_module: 'Marked a module done',
+  add_language_module: 'Wrote a new language module',
 };
 
 type ToolPart = { type: string; state?: string; input?: unknown; output?: unknown; errorText?: string };
