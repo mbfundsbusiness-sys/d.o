@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { addDaysISO, dayStreak, londonDateISO, todayISO, workingDaysBetween } from './dates';
+import { addDaysISO, dayStreak, londonDateISO, todayISO, workingDaysBetween, londonToUtcISO } from './dates';
 
 afterEach(() => vi.useRealTimers());
 
@@ -31,5 +31,12 @@ describe('London date handling (regression: streaks read 0 in BST)', () => {
   it('workingDaysBetween skips the summer bank holiday in BST', () => {
     // Mon 24 Aug -> Fri 4 Sep 2026: 9 weekdays, Mon 31 Aug is a bank holiday => 8 + (4 Sep exclusive)
     expect(workingDaysBetween(new Date('2026-08-24T00:00:00+01:00'), new Date('2026-09-04T00:00:00+01:00'))).toBe(8);
+  });
+});
+
+describe('londonToUtcISO', () => {
+  it('handles GMT and BST', () => {
+    expect(londonToUtcISO('2026-12-01', '09:00')).toBe('2026-12-01T09:00:00.000Z');
+    expect(londonToUtcISO('2026-07-01', '09:00')).toBe('2026-07-01T08:00:00.000Z');
   });
 });

@@ -1,4 +1,4 @@
-import type { ScheduleBlock, UserSettings, WorkShift } from '@/lib/supabase/client';
+import type { ScheduleBlock, UserSettings, WorkShift } from '@/lib/supabase/types';
 import { minutesOfDay, minutesToHM, fmtHM } from '@/lib/utils/dates';
 
 export type EffectiveBlock = {

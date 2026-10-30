@@ -1,5 +1,7 @@
-import { supabase, type WorkShift } from '@/lib/supabase/client';
-import { addDaysISO, todayISO } from '@/lib/utils/dates';
+import type { WorkShift } from '@/lib/supabase/types';
+import { addDaysISO } from '@/lib/utils/dates';
+
+export const DEFAULT_SHIFT_TITLE = 'DPD Hounslow West TW3 TW4';
 
 /** Shifts whose date is `dateISO`, earliest first. */
 export function shiftsOn(shifts: WorkShift[], dateISO: string): WorkShift[] {
@@ -17,25 +19,6 @@ export function mondayOf(dateISO: string): string {
 /** The seven dates Mon..Sun starting at `mondayISO`. */
 export function weekDates(mondayISO: string): string[] {
   return Array.from({ length: 7 }, (_, i) => addDaysISO(mondayISO, i));
-}
-
-/** Shifts from `fromISO` to `toISO` inclusive. Returns [] (never throws) so callers degrade gracefully. */
-export async function fetchShifts(fromISO: string, toISO: string): Promise<WorkShift[]> {
-  const { data, error } = await supabase
-    .from('work_shifts')
-    .select('*')
-    .gte('shift_date', fromISO)
-    .lte('shift_date', toISO)
-    .order('shift_date', { ascending: true })
-    .order('start_time', { ascending: true });
-  if (error) return [];
-  return (data ?? []) as WorkShift[];
-}
-
-/** Today's and the next `daysAhead` days of shifts. */
-export function fetchUpcomingShifts(daysAhead = 14): Promise<WorkShift[]> {
-  const today = todayISO();
-  return fetchShifts(today, addDaysISO(today, daysAhead));
 }
 
 /** Validates a start/end pair typed as "HH:MM". Returns an error message or null. */

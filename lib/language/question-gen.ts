@@ -1,5 +1,5 @@
-import { callGemini } from '@/lib/gemini';
-import type { LangQuestionType, ModuleContent } from '@/lib/supabase/client';
+import { callModel } from '@/lib/ai/models';
+import type { LangQuestionType, ModuleContent } from '@/lib/supabase/types';
 
 export type RawQuestion = {
   question_type: LangQuestionType;
@@ -70,7 +70,6 @@ function validate(q: unknown): q is RawQuestion {
  * up (the caller should fall back to a safe default if this throws).
  */
 export async function generateOneQuestion({
-  apiKey,
   language,
   lessonTitle,
   focusArea,
@@ -78,7 +77,6 @@ export async function generateOneQuestion({
   difficulty,
   avoidPrompts,
 }: {
-  apiKey: string;
   language: string;
   lessonTitle: string;
   focusArea: string;
@@ -95,8 +93,7 @@ ${avoidPrompts.length > 0 ? `\nAlready asked in this lesson — do not repeat th
 Return ONLY the JSON object for one new question at difficulty ${difficulty}.`;
 
   for (let attempt = 0; attempt < 2; attempt++) {
-    const rawText = await callGemini({
-      apiKey,
+    const rawText = await callModel({
       system: systemPrompt(difficulty),
       maxOutputTokens: 1024,
       messages: [{ role: 'user', content: userMessage }],
