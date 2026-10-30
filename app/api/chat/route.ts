@@ -11,6 +11,9 @@ export const maxDuration = 60;
 /** How much of the thread the model sees each turn. */
 const CONTEXT_MESSAGES = 30;
 
+/** A reply that failed before any output has no parts; it's noise in the history and some models reject it. */
+const hasContent = (m: Pick<UIMessage, 'parts'>) => Array.isArray(m.parts) && m.parts.length > 0;
+
 export async function GET(req: Request) {
   const auth = await requireUser(req);
   if (!auth) return unauthorized();
@@ -24,11 +27,16 @@ export async function GET(req: Request) {
     .order('created_at', { ascending: false })
     .limit(80);
   if (error) return Response.json({ error: error.message }, { status: 500 });
-  const messages = (data ?? []).reverse().map(({ id, role, parts }) => ({ id, role, parts })) as UIMessage[];
+  const messages = (data ?? [])
+    .reverse()
+    .filter(hasContent)
+    .map(({ id, role, parts }) => ({ id, role, parts })) as UIMessage[];
   return Response.json({ messages });
 }
 
-async function save(db: SupabaseClient, userId: string, assistant: AssistantKey, messages: UIMessage[]) {
+async function save(db: SupabaseClient, userId: string, assistant: AssistantKey, all: UIMessage[]) {
+  const messages = all.filter(hasContent);
+  if (messages.length === 0) return;
   const base = Date.now() - messages.length;
   // ignoreDuplicates keeps the original timestamps of messages saved on earlier turns.
   await db.from('chat_messages').upsert(
@@ -53,7 +61,7 @@ export async function POST(req: Request) {
   }
 
   const { system, tools } = await buildAssistant(assistant, auth.db, auth.userId);
-  const recent = messages.slice(-CONTEXT_MESSAGES);
+  const recent = messages.filter(hasContent).slice(-CONTEXT_MESSAGES);
 
   const result = streamText({
     model: model('fast'),
