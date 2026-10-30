@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ChatView } from '@/components/chat/chat-view';
 import { FinancePanel } from '@/components/panels/finance-panel';
 import { ScholarshipPanel } from '@/components/panels/scholarship-panel';
+import { FreelancePanel } from '@/components/panels/freelance-panel';
 import { ASSISTANT_NAV } from '@/lib/assistants/nav';
 
 export default function AssistantPage({ params }: { params: { assistant: string } }) {
@@ -37,11 +38,13 @@ export default function AssistantPage({ params }: { params: { assistant: string 
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-      <h1 className="text-lg font-medium">{a.name}</h1>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        Trading notes as a slideshow and BotCouncil status. Coming in a later phase.
-      </p>
-    </div>
+    <ChatView
+      assistant="freelance"
+      title="Freelance"
+      placeholder="Ask about your notes, save a new note, or check BotCouncil…"
+      panelTitle="Notes"
+      Panel={FreelancePanel}
+      starters={['Quiz me on breaker blocks', 'Where do my notes cover the London session?', 'How is BotCouncil doing?', 'Save a note: never trade the first hour after NFP']}
+    />
   );
 }

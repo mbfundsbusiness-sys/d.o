@@ -32,6 +32,16 @@ const TOOL_LABELS: Record<string, string> = {
   list_language_modules: 'Checked language modules',
   complete_language_module: 'Marked a module done',
   add_language_module: 'Wrote a new language module',
+  get_progress: 'Checked earned free time',
+  add_reward: 'Added a reward',
+  update_reward: 'Updated a reward',
+  redeem_reward: 'Redeemed a reward',
+  get_note: 'Opened a slide',
+  search_notes: 'Searched the notes',
+  add_note: 'Saved a note',
+  update_note: 'Edited a slide',
+  delete_note: 'Deleted a slide',
+  botcouncil_status: 'Checked BotCouncil',
 };
 
 type ToolPart = { type: string; state?: string; input?: unknown; output?: unknown; errorText?: string };
@@ -68,6 +78,8 @@ function describeInput(name: string, input: unknown): string {
   if (typeof i.title === 'string') return i.title;
   if (typeof i.name === 'string') return i.name;
   if (name === 'log_shift' && typeof i.drops === 'number') return `${i.drops} drops`;
+  if (typeof i.query === 'string') return i.query;
+  if (typeof i.position === 'number') return `#${i.position}`;
   if (typeof i.date === 'string') return i.date;
   return '';
 }

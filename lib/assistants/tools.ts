@@ -6,7 +6,12 @@ import { describeDay } from '@/lib/schedule/day';
 import { DEFAULT_SHIFT_TITLE } from '@/lib/schedule/shifts';
 import { loadDay, saveRules } from '@/lib/server/data';
 import { replanDay } from '@/lib/server/plan';
-import { londonNow, londonToUtcISO, minutesOfDay } from '@/lib/utils/dates';
+import { describeLedger } from '@/lib/rewards/ledger';
+import { describePatterns } from '@/lib/schedule/learn';
+import { botCouncilStatus, describeBotCouncil } from '@/lib/server/botcouncil';
+import { listNotes } from '@/lib/server/notes';
+import { describeRewards, loadProgress } from '@/lib/server/progress';
+import { addDaysISO, londonNow, londonToUtcISO, minutesOfDay } from '@/lib/utils/dates';
 
 // Every tool is scoped to one user. Outputs are short strings or small objects
 // the model relays; errors come back as { error } so the model can explain them.
@@ -208,7 +213,20 @@ export function todoTools({ db, userId }: ToolCtx) {
   };
 }
 
-export function shiftTools({ db, userId }: ToolCtx) {
+export function shiftTools(ctx: ToolCtx) {
+  const { db, userId } = ctx;
+  // A shift is fixed, so the plan for that day moves around it straight away (today or tomorrow).
+  const replanIfSoon = async (...dates: (string | undefined)[]) => {
+    const today = londonNow().dateISO;
+    const soon = new Set([today, addDaysISO(today, 1)]);
+    const moved: string[] = [];
+    for (const d of new Set(dates.filter((x): x is string => !!x && soon.has(x)))) {
+      const r = await replanDay(db, userId, d, ctx.rules);
+      if (r.unplaced.length) moved.push(`${d}: no room for ${r.unplaced.map((u) => `${u.title} (${u.minutes} min)`).join(', ')}; ask before dropping`);
+      else moved.push(`${d}: re-planned around the shift`);
+    }
+    return moved;
+  };
   return {
     add_shift: tool({
       description: 'Add a DPD shift to the rota (fixed: the schedule works around it).',
@@ -221,7 +239,8 @@ export function shiftTools({ db, userId }: ToolCtx) {
           .insert({ user_id: userId, shift_date: date, start_time: start, end_time: end, title: title ?? DEFAULT_SHIFT_TITLE })
           .select('id')
           .single();
-        return error ? fail(error.message) : { ok: true, id: data.id };
+        if (error) return fail(error.message);
+        return { ok: true, id: data.id, plan: await replanIfSoon(date) };
       },
     }),
     log_shift: tool({
@@ -265,8 +284,11 @@ export function shiftTools({ db, userId }: ToolCtx) {
           if (bad) return fail(bad);
         }
         const patch = Object.fromEntries(Object.entries({ shift_date: date, start_time: start, end_time: end }).filter(([, v]) => v !== undefined));
-        const { error, count } = await db.from('work_shifts').update(patch, { count: 'exact' }).eq('id', id).eq('user_id', userId);
-        return error ? fail(error.message) : count ? { ok: true } : fail('no such shift');
+        const { data: before } = await db.from('work_shifts').select('shift_date').eq('id', id).eq('user_id', userId).maybeSingle();
+        if (!before) return fail('no such shift');
+        const { error } = await db.from('work_shifts').update(patch).eq('id', id).eq('user_id', userId);
+        if (error) return fail(error.message);
+        return { ok: true, plan: await replanIfSoon(before.shift_date, date) };
       },
     }),
     delete_shift: tool({
@@ -459,6 +481,132 @@ export function languageTools({ db, userId }: ToolCtx) {
           .single();
         return error ? fail(error.message) : { ok: true, ...data };
       },
+    }),
+  };
+}
+
+/** Phase 4: earned free time, streaks and rewards. */
+export function rewardTools(ctx: ToolCtx) {
+  const { db, userId } = ctx;
+  return {
+    get_progress: tool({
+      description: 'Free-time balance, streak, what the schedule has learned about when things get done, and the reward list.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        const p = await loadProgress(db, userId, ctx.rules);
+        return { ledger: describeLedger(p.ledger), patterns: describePatterns(p.patterns), rewards: describeRewards(p.rewards) };
+      },
+    }),
+    add_reward: tool({
+      description: 'Add a reward the user can buy with earned free time, e.g. "an hour of gaming" for 60 min. Use the user\'s own words for the title.',
+      inputSchema: z.object({ title: z.string().min(1), cost_min: z.number().int().min(5).max(1440) }),
+      execute: async ({ title, cost_min }) => {
+        const { data, error } = await db.from('rewards').insert({ user_id: userId, title, cost_min }).select('id').single();
+        return error ? fail(error.message) : { ok: true, id: data.id };
+      },
+    }),
+    update_reward: tool({
+      description: 'Change a reward\'s title or cost, or retire it (active=false).',
+      inputSchema: z.object({ id: z.string(), title: z.string().optional(), cost_min: z.number().int().min(5).max(1440).optional(), active: z.boolean().optional() }),
+      execute: async ({ id, ...patch }) => {
+        const { error, count } = await db.from('rewards').update(patch, { count: 'exact' }).eq('id', id).eq('user_id', userId);
+        return error ? fail(error.message) : count ? { ok: true } : fail('no such reward');
+      },
+    }),
+    redeem_reward: tool({
+      description:
+        'Spend earned free time on a reward (a listed one by id, or a one-off with a title and minutes). Refused when the balance is too low: free time has to be earned first.',
+      inputSchema: z.object({ reward_id: z.string().optional(), title: z.string().optional(), cost_min: z.number().int().min(1).max(1440).optional() }),
+      execute: async ({ reward_id, title, cost_min }) => {
+        let item = title && cost_min ? { id: null as string | null, title, cost_min } : null;
+        if (reward_id) {
+          const { data } = await db.from('rewards').select('id, title, cost_min').eq('id', reward_id).eq('user_id', userId).maybeSingle();
+          if (!data) return fail('no such reward');
+          item = data;
+        }
+        if (!item) return fail('give a reward_id, or a title and cost_min');
+        const { ledger } = await loadProgress(db, userId, ctx.rules);
+        if (ledger.balanceMin < item.cost_min) return fail(`not earned yet: ${ledger.balanceMin} min banked, ${item.title} costs ${item.cost_min}`);
+        const { error } = await db.from('reward_redemptions').insert({ user_id: userId, reward_id: item.id, title: item.title, cost_min: item.cost_min });
+        return error ? fail(error.message) : { ok: true, balance_after_min: ledger.balanceMin - item.cost_min };
+      },
+    }),
+  };
+}
+
+/** Phase 3: the user's trading notes (slides) and BotCouncil's status. */
+export function freelanceTools({ db, userId }: ToolCtx) {
+  const position = z.number().int().min(1).max(100000);
+  return {
+    get_note: tool({
+      description: 'Read one slide of the trading notes in full (by id, or by its #position).',
+      inputSchema: z.object({ id: z.string().optional(), position: position.optional() }),
+      execute: async ({ id, position }) => {
+        let q = db.from('trading_notes').select('id, position, section, title, body').eq('user_id', userId);
+        if (id) q = q.eq('id', id);
+        else if (position) q = q.eq('position', position);
+        else return fail('give an id or a position');
+        const { data } = await q.limit(1).maybeSingle();
+        return data ?? fail('no such slide');
+      },
+    }),
+    search_notes: tool({
+      description: 'Find slides whose title or text mentions a term (e.g. "breaker", "CBDR", "Thursday").',
+      inputSchema: z.object({ query: z.string().min(2) }),
+      execute: async ({ query }) => {
+        const notes = await listNotes(db, userId);
+        const q = query.toLowerCase();
+        return notes
+          .filter((n) => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q))
+          .slice(0, 12)
+          .map((n) => {
+            const at = n.body.toLowerCase().indexOf(q);
+            return { id: n.id, position: n.position, title: n.title, snippet: at >= 0 ? n.body.slice(Math.max(0, at - 80), at + 160) : n.body.slice(0, 160) };
+          });
+      },
+    }),
+    add_note: tool({
+      description:
+        "Add a slide with what the user just told you (their words, tidied, never your own trading ideas). Goes at the end unless after_position is given.",
+      inputSchema: z.object({ title: z.string().min(1), body: z.string(), section: z.string().optional(), after_position: position.optional() }),
+      execute: async ({ title, body, section, after_position }) => {
+        const notes = await listNotes(db, userId);
+        let pos = (notes[notes.length - 1]?.position ?? 0) + 1;
+        if (after_position !== undefined) {
+          pos = after_position + 1;
+          for (const n of [...notes].reverse().filter((n) => n.position >= pos)) {
+            await db.from('trading_notes').update({ position: n.position + 1 }).eq('id', n.id);
+          }
+        }
+        const { data, error } = await db
+          .from('trading_notes')
+          .insert({ user_id: userId, position: pos, title, body, section: section ?? notes.find((n) => n.position === pos - 1)?.section ?? null })
+          .select('id, position')
+          .single();
+        return error ? fail(error.message) : { ok: true, ...data };
+      },
+    }),
+    update_note: tool({
+      description: "Edit a slide's title, text or chapter, as the user asked.",
+      inputSchema: z.object({ id: z.string(), title: z.string().optional(), body: z.string().optional(), section: z.string().nullable().optional() }),
+      execute: async ({ id, ...patch }) => {
+        const { error, count } = await db.from('trading_notes').update(patch, { count: 'exact' }).eq('id', id).eq('user_id', userId);
+        return error ? fail(error.message) : count ? { ok: true } : fail('no such slide');
+      },
+    }),
+    delete_note: tool({
+      description: "Delete a slide. Needs the user's explicit yes: confirmed=true only after they agreed to delete that slide.",
+      inputSchema: z.object({ id: z.string(), confirmed: z.boolean() }),
+      execute: async ({ id, confirmed }) => {
+        if (!confirmed) return fail('Ask the user first: deleting needs their explicit yes.');
+        const { error, count } = await db.from('trading_notes').delete({ count: 'exact' }).eq('id', id).eq('user_id', userId);
+        return error ? fail(error.message) : count ? { ok: true } : fail('no such slide');
+      },
+    }),
+    botcouncil_status: tool({
+      description: "Fresh BotCouncil status (sweeps, forecasts, accuracy, council readiness, AI spend, users). Read-only.",
+      inputSchema: z.object({}),
+      execute: async () => describeBotCouncil(await botCouncilStatus()),
     }),
   };
 }

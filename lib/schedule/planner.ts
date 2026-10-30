@@ -3,6 +3,7 @@ import { splitStudy, type ModuleStudy } from '@/lib/scholarship/study';
 import { uniModuleByKey } from '@/lib/uni/modules';
 import type { PriorityKey, Rules } from '@/lib/rules';
 import { freeGaps, type DayView, type Gap } from '@/lib/schedule/day';
+import type { Learned } from '@/lib/schedule/learn';
 import { minutesOfDay, minutesToHM } from '@/lib/utils/dates';
 
 // Fills a day's free time around the fixed blocks, in the order the rules give
@@ -32,6 +33,8 @@ export type PlanContext = {
   study?: ModuleStudy[];
   /** Title of the next language module, used to label the language block. */
   languageTitle?: string;
+  /** Hours each activity actually gets done in, and gets missed in (Phase 4). */
+  learned?: Learned;
 };
 
 export function demandsFor({ day, rules, todos, gymSessionsThisWeek, fromMin = 0, study = [], languageTitle }: PlanContext): Demand[] {
@@ -109,8 +112,26 @@ function take(gaps: Gap[], i: number, start: number, end: number): void {
   gaps.splice(i, 1, ...parts);
 }
 
-/** Greedy placement: preferred window first, then the earliest gap; splits into ≥30 min chunks if needed. */
-export function placeDemands(demands: Demand[], gapsIn: Gap[], bufferMin: number): PlanResult {
+/** Earliest start for `len` minutes inside a gap but outside `avoid`. */
+function fitOutside(gaps: Gap[], len: number, avoid: Gap): { i: number; start: number } | null {
+  for (let i = 0; i < gaps.length; i++) {
+    const g = gaps[i];
+    const segs: Gap[] = [
+      { start: g.start, end: Math.min(g.end, avoid.start) },
+      { start: Math.max(g.start, avoid.end), end: g.end },
+    ];
+    const seg = segs.find((x) => x.end - x.start >= len);
+    if (seg) return { i, start: seg.start };
+  }
+  return null;
+}
+
+/**
+ * Greedy placement: the preferred window first (learned, or the default for the
+ * activity), then the earliest gap outside a learned "keeps getting missed"
+ * window, then any earliest gap; splits into ≥30 min chunks if nothing fits whole.
+ */
+export function placeDemands(demands: Demand[], gapsIn: Gap[], bufferMin: number, learned?: Learned): PlanResult {
   const gaps = gapsIn.map((g) => ({ ...g }));
   const items: Proposed[] = [];
   const unplaced: PlanResult['unplaced'] = [];
@@ -127,7 +148,8 @@ export function placeDemands(demands: Demand[], gapsIn: Gap[], bufferMin: number
 
   for (const d of demands) {
     let left = d.minutes;
-    const pref = PREFERRED[d.kind];
+    const pref = learned?.prefer[d.kind] ?? PREFERRED[d.kind];
+    const avoid = learned?.avoid[d.kind];
     // 1. one block, preferred window
     if (pref) {
       const i = gaps.findIndex((g) => Math.min(g.end, pref.end) - Math.max(g.start, pref.start) >= left);
@@ -138,7 +160,16 @@ export function placeDemands(demands: Demand[], gapsIn: Gap[], bufferMin: number
         continue;
       }
     }
-    // 2. one block, earliest gap
+    // 2. one block, earliest gap clear of the hours it keeps getting missed in
+    if (avoid) {
+      const fit = fitOutside(gaps, left, avoid);
+      if (fit) {
+        take(gaps, fit.i, fit.start, fit.start + left + bufferMin);
+        emit(d, fit.start, fit.start + left);
+        continue;
+      }
+    }
+    // 3. one block, earliest gap
     const whole = gaps.findIndex((g) => g.end - g.start >= left);
     if (whole !== -1) {
       const start = gaps[whole].start;
@@ -146,7 +177,7 @@ export function placeDemands(demands: Demand[], gapsIn: Gap[], bufferMin: number
       emit(d, start, start + left);
       continue;
     }
-    // 3. split across gaps
+    // 4. split across gaps
     for (let i = 0; i < gaps.length && left >= MIN_CHUNK; ) {
       const g = gaps[i];
       const len = Math.min(left, g.end - g.start);
@@ -163,5 +194,5 @@ export function placeDemands(demands: Demand[], gapsIn: Gap[], bufferMin: number
 
 export function planDay(ctx: PlanContext): PlanResult {
   const gaps = freeGaps(ctx.day, ctx.rules, ctx.fromMin ?? 0);
-  return placeDemands(demandsFor(ctx), gaps, ctx.rules.buffer_min);
+  return placeDemands(demandsFor(ctx), gaps, ctx.rules.buffer_min, ctx.learned);
 }

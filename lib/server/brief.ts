@@ -5,6 +5,9 @@ import { describeRules, type Rules } from '@/lib/rules';
 import { describeDay, type DayView } from '@/lib/schedule/day';
 import { loadDay, loadRules } from '@/lib/server/data';
 import { replanDay } from '@/lib/server/plan';
+import { describeLedger } from '@/lib/rewards/ledger';
+import { describePatterns } from '@/lib/schedule/learn';
+import { loadProgress } from '@/lib/server/progress';
 import { addDaysISO, fmtHM, londonNow } from '@/lib/utils/dates';
 
 // The morning brief and evening review are EA messages written by the planning
@@ -80,16 +83,17 @@ export async function eveningReview(db: SupabaseClient, userId: string): Promise
   if (existing !== null) return { text: existing, created: false };
 
   const rules = await loadRules(db, userId);
-  const [today, tomorrow] = await Promise.all([
+  const [today, tomorrow, progress] = await Promise.all([
     loadDay(db, userId, now.dateISO, rules),
     loadDay(db, userId, addDaysISO(now.dateISO, 1), rules),
+    loadProgress(db, userId, rules),
   ]);
   const { text } = await generateText({
     model: model('plan'),
     providerOptions: gatewayFallback('plan'),
     maxOutputTokens: 600,
-    system: `You are the user's EA writing the evening review. Cover: what got done today against the plan (be specific), what slipped and the honest reason if the data shows one, whether free time was earned, and the first fixed thing tomorrow plus wake time. Ask them to tell you anything done that isn't marked. ${TONE_LINE[rules.tone]} Under 130 words. 24h times. No headings, no emoji.`,
-    prompt: `Today:\n${describeDay(today, now.minutesOfDay)}\n${tally(today)}\n\nTomorrow:\n${describeDay(tomorrow)}`,
+    system: `You are the user's EA writing the evening review. Cover: what got done today against the plan (be specific), what slipped and the honest reason if the data shows one, the free time earned today and the banked balance and streak (exact figures from the data), and the first fixed thing tomorrow plus wake time. If the history shows a pattern worth acting on (e.g. something keeps getting missed at a certain time, or shift days collapse), name it in one line and suggest a change, as a question. Ask them to tell you anything done that isn't marked. ${TONE_LINE[rules.tone]} Under 130 words. 24h times. No headings, no emoji.`,
+    prompt: `Today:\n${describeDay(today, now.minutesOfDay)}\n${tally(today)}\n\n${describeLedger(progress.ledger)}\n\nWhat the history shows:\n${describePatterns(progress.patterns)}\n\nTomorrow:\n${describeDay(tomorrow)}`,
   });
   await write(db, userId, id, text.trim());
   return { text: text.trim(), created: true };

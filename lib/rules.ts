@@ -56,6 +56,22 @@ export const rulesSchema = z.object({
   }),
   /** How hard the EA pushes. */
   tone: z.enum(['blunt', 'firm', 'gentle']),
+  /** Free time is earned: done work adds minutes, missed work takes some away. */
+  rewards: z.object({
+    /** Free-time minutes earned per hour of planned work done. */
+    earn_per_hour: z.number().int().min(0).max(120),
+    /** Free-time minutes lost per hour of planned work missed. */
+    miss_penalty_per_hour: z.number().int().min(0).max(120),
+    /** A day keeps the streak alive when at least this % of its plan is done. */
+    streak_pct: z.number().int().min(10).max(100),
+  }),
+  /** How much the schedule optimises itself. */
+  autopilot: z.object({
+    /** When a block is missed, re-plan the rest of the day straight away. */
+    auto_replan: z.boolean(),
+    /** Place study, BotCouncil, gym and language in the hours they actually get done. */
+    learn_windows: z.boolean(),
+  }),
 });
 
 export type Rules = z.infer<typeof rulesSchema>;
@@ -80,6 +96,8 @@ export const DEFAULT_RULES: Rules = {
     quiet_end: '04:00',
   },
   tone: 'blunt',
+  rewards: { earn_per_hour: 20, miss_penalty_per_hour: 10, streak_pct: 80 },
+  autopilot: { auto_replan: true, learn_windows: true },
 };
 
 type Obj = Record<string, unknown>;
@@ -158,5 +176,7 @@ export function describeRules(r: Rules): string {
     `finance: per_drop_rate=${r.finance.per_drop_rate ?? 'unknown'}, tax_set_aside_pct=${r.finance.tax_set_aside_pct}`,
     `pings: morning_brief=${r.pings.morning_brief}, evening_review=${r.pings.evening_review}@${r.pings.evening_review_time}, slacking_callouts=${r.pings.slacking_callouts} (grace ${r.pings.slacking_grace_min} min), quiet ${r.pings.quiet_start}-${r.pings.quiet_end}`,
     `tone=${r.tone}`,
+    `rewards: earn_per_hour=${r.rewards.earn_per_hour} min free per hour done, miss_penalty_per_hour=${r.rewards.miss_penalty_per_hour}, streak_pct=${r.rewards.streak_pct}`,
+    `autopilot: auto_replan=${r.autopilot.auto_replan}, learn_windows=${r.autopilot.learn_windows}`,
   ].join('\n');
 }

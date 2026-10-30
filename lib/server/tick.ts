@@ -4,10 +4,13 @@ import type { PlanItem } from '@/lib/supabase/types';
 import { loadDay, loadRules } from '@/lib/server/data';
 import { eveningReview, morningBrief, pingText } from '@/lib/server/brief';
 import { claimOnce, ntfyTopic, pingOnce, releaseClaim, sendPing } from '@/lib/server/notify';
+import { replanDay } from '@/lib/server/plan';
 import { fmtHM, londonNow, minutesOfDay, minutesToHM } from '@/lib/utils/dates';
 
 // Runs every 5 minutes (pg_cron -> /api/cron/tick). Sends the morning brief at
-// wake, block start pings, slacking callouts and the evening review.
+// wake, block start pings, slacking callouts and the evening review. When a block
+// is missed it re-plans the rest of the day by itself (moving is free) and says
+// where the work went; if it no longer fits, it asks rather than dropping it.
 
 const TICK = 5;
 
@@ -77,10 +80,24 @@ export async function tickUser(db: SupabaseClient, userId: string, topic: string
       if (ok) sent.push(`start:${p.id}`);
     }
     const late = nowMin - start;
-    if (rules.pings.slacking_callouts && late >= rules.pings.slacking_grace_min && late < rules.pings.slacking_grace_min + 180) {
+    if (late < rules.pings.slacking_grace_min || late >= rules.pings.slacking_grace_min + 180) continue;
+    let moved = '';
+    if (rules.autopilot.auto_replan && (await claimOnce(db, `plan:${p.id}:auto`))) {
+      await db.from('plan_items').update({ status: 'skipped', note: 'missed' }).eq('id', p.id).eq('status', 'planned');
+      const r = await replanDay(db, userId, now.dateISO, rules);
+      const next = r.items.find((i) => i.title === p.title);
+      const unfit = r.unplaced.find((u) => u.title === p.title);
+      moved = next
+        ? ` Moved it to ${next.start}.`
+        : unfit
+          ? ` It doesn't fit the rest of today. Tell me in D.O.: push it to tomorrow, or drop it.`
+          : '';
+      sent.push(`replan:${p.id}`);
+    }
+    if (rules.pings.slacking_callouts) {
       const ok = await pingOnce(db, topic, `plan:${p.id}:slack`, {
         title: 'Nothing logged',
-        message: slackLine(p, nowMin, rules.tone),
+        message: slackLine(p, nowMin, rules.tone) + moved,
         tags: ['warning'],
         priority: 4,
       });

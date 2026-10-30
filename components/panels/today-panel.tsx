@@ -1,16 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Loader2, RefreshCw } from 'lucide-react';
+import { Check, Flame, Loader2, RefreshCw } from 'lucide-react';
 import type { DayView, FixedBlock } from '@/lib/schedule/day';
 import type { PlanItem, TodoItem } from '@/lib/supabase/types';
+import { fmtMin, type Ledger } from '@/lib/rewards/ledger';
+import type { Reward } from '@/lib/server/progress';
 import { supabase } from '@/lib/supabase/client';
 import { apiGet } from '@/lib/api';
 import { fmtHM, minutesOfDay } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils';
 import type { PanelProps } from '@/components/chat/chat-view';
 
-type TodayData = { nowMin: number; today: DayView; tomorrow: DayView; todos: TodoItem[] };
+type TodayData = { nowMin: number; today: DayView; tomorrow: DayView; todos: TodoItem[]; ledger: Ledger; rewards: Reward[] };
 
 type Row =
   | { type: 'fixed'; start: number; end: number; block: FixedBlock }
@@ -66,7 +68,7 @@ export function TodayPanel({ refreshKey, ask }: PanelProps) {
   if (err) return <p className="p-5 text-sm text-muted-foreground">Couldn&apos;t load today. It will retry in a minute.</p>;
   if (!data) return <Loader2 className="m-5 h-4 w-4 animate-spin text-muted-foreground" />;
 
-  const { today, tomorrow, nowMin, todos } = data;
+  const { today, tomorrow, nowMin, todos, ledger, rewards } = data;
   const rows: Row[] = [
     ...today.fixed.map<Row>((b) => ({ type: 'fixed', start: b.startMin, end: b.endMin, block: b })),
     ...today.plan
@@ -93,6 +95,41 @@ export function TodayPanel({ refreshKey, ask }: PanelProps) {
         <div className="mt-1 h-1 overflow-hidden rounded bg-muted">
           <div className="h-full bg-emerald-500 transition-all" style={{ width: `${live.length ? (done / live.length) * 100 : 0}%` }} />
         </div>
+      </section>
+
+      <section>
+        <div className="flex items-baseline justify-between">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Free time earned</h3>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground" title="Days in a row with most of the plan done">
+            <Flame className={cn('h-3 w-3', ledger.streak > 0 && 'text-orange-400')} />
+            {ledger.streak} day{ledger.streak === 1 ? '' : 's'}
+          </span>
+        </div>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className={cn('text-xl font-medium tabular-nums', ledger.balanceMin < 0 && 'text-red-400')}>{fmtMin(ledger.balanceMin)}</span>
+          <span className="text-xs text-muted-foreground">banked · +{fmtMin(ledger.todayEarnedMin)} today</span>
+        </div>
+        {rewards.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {rewards.slice(0, 6).map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                disabled={ledger.balanceMin < r.cost_min}
+                onClick={() => ask(`Redeem my reward: ${r.title}`)}
+                className="rounded-md border border-border px-2 py-1 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                title={ledger.balanceMin < r.cost_min ? `Earn ${fmtMin(r.cost_min - ledger.balanceMin)} more first` : undefined}
+              >
+                {r.title} · {fmtMin(r.cost_min)}
+              </button>
+            ))}
+          </div>
+        )}
+        {rewards.length === 0 && (
+          <button type="button" onClick={() => ask('Set up my rewards for earned free time.')} className="mt-2 text-xs text-muted-foreground hover:text-foreground">
+            + Set up rewards
+          </button>
+        )}
       </section>
 
       <section className="flex flex-col">

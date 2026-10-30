@@ -5,6 +5,7 @@ import { mondayOf } from '@/lib/schedule/shifts';
 import { addDaysISO, londonNow, minutesToHM } from '@/lib/utils/dates';
 import { loadDay, openTodos } from '@/lib/server/data';
 import { studyInputs } from '@/lib/server/scholarship';
+import { loadProgress } from '@/lib/server/progress';
 
 /**
  * (Re)plans one day. The EA's own not-yet-started blocks are replaced; anything
@@ -20,7 +21,7 @@ export async function replanDay(db: SupabaseClient, userId: string, date: string
   await clear;
 
   const monday = mondayOf(date);
-  const [day, todos, studied, gym] = await Promise.all([
+  const [day, todos, studied, gym, progress] = await Promise.all([
     loadDay(db, userId, date, rules),
     openTodos(db, userId),
     studyInputs(db, userId, date),
@@ -33,9 +34,11 @@ export async function replanDay(db: SupabaseClient, userId: string, date: string
       .gte('plan_date', monday)
       .lte('plan_date', addDaysISO(monday, 6))
       .neq('plan_date', date),
+    rules.autopilot.learn_windows ? loadProgress(db, userId, rules) : Promise.resolve(null),
   ]);
 
-  const result = planDay({ day, rules, todos, gymSessionsThisWeek: gym.count ?? 0, fromMin, ...studied });
+  const learned = progress ? { prefer: progress.patterns.prefer, avoid: progress.patterns.avoid } : undefined;
+  const result = planDay({ day, rules, todos, gymSessionsThisWeek: gym.count ?? 0, fromMin, ...studied, learned });
   if (result.items.length) {
     await db.from('plan_items').insert(
       result.items.map((p) => ({
