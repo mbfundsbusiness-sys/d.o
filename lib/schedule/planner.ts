@@ -28,8 +28,10 @@ export type PlanContext = {
   fromMin?: number;
 };
 
-export function demandsFor({ day, rules, todos, gymSessionsThisWeek }: PlanContext): Demand[] {
-  const live = day.plan.filter((p) => p.status === 'planned' || p.status === 'done');
+export function demandsFor({ day, rules, todos, gymSessionsThisWeek, fromMin = 0 }: PlanContext): Demand[] {
+  // Done blocks and blocks still ahead count; a planned block whose time has passed was missed,
+  // so its work is still owed and gets planned again.
+  const live = day.plan.filter((p) => p.status === 'done' || (p.status === 'planned' && minutesOfDay(p.end_time) > fromMin));
   const already = (kind: PlanKind) =>
     live.filter((p) => p.kind === kind).reduce((t, p) => t + minutesOfDay(p.end_time) - minutesOfDay(p.start_time), 0);
   const plannedTodo = new Set(live.map((p) => p.todo_id).filter(Boolean));

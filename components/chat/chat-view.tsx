@@ -10,7 +10,13 @@ import { ChatMessage } from '@/components/chat/message';
 import { Composer } from '@/components/chat/composer';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
-export type PanelProps = { refreshKey: number; ask: (text: string) => void };
+export type PanelProps = {
+  refreshKey: number;
+  /** Sends a message straight away. */
+  ask: (text: string) => void;
+  /** Puts text in the composer for the user to finish. */
+  draft: (text: string) => void;
+};
 
 export function ChatView({
   assistant,
@@ -34,6 +40,7 @@ export function ChatView({
   const [preparing, setPreparing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [seed, setSeed] = useState<{ text: string; n: number }>();
   const bottom = useRef<HTMLDivElement>(null);
 
   const transport = useMemo(
@@ -85,6 +92,7 @@ export function ChatView({
 
   const busy = status === 'submitted' || status === 'streaming';
   const ask = useCallback((text: string) => sendMessage({ text }), [sendMessage]);
+  const draft = useCallback((text: string) => setSeed((s) => ({ text, n: (s?.n ?? 0) + 1 })), []);
 
   return (
     <div className="flex h-full min-h-0">
@@ -138,20 +146,30 @@ export function ChatView({
 
         <div className="shrink-0 px-4 pb-4 md:px-6">
           <div className="mx-auto max-w-3xl">
-            <Composer onSend={ask} onStop={stop} busy={busy} placeholder={placeholder} />
+            <Composer onSend={ask} onStop={stop} busy={busy} placeholder={placeholder} seed={seed} />
           </div>
         </div>
       </div>
 
       <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-black xl:block">
-        <Panel refreshKey={refreshKey} ask={ask} />
+        <Panel refreshKey={refreshKey} ask={ask} draft={draft} />
       </aside>
       <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
         <SheetContent side="right" className="w-[92vw] max-w-[380px] overflow-y-auto p-0">
           <SheetHeader className="sr-only">
             <SheetTitle>{panelTitle}</SheetTitle>
           </SheetHeader>
-          <Panel refreshKey={refreshKey} ask={(t) => { setPanelOpen(false); ask(t); }} />
+          <Panel
+            refreshKey={refreshKey}
+            ask={(t) => {
+              setPanelOpen(false);
+              ask(t);
+            }}
+            draft={(t) => {
+              setPanelOpen(false);
+              draft(t);
+            }}
+          />
         </SheetContent>
       </Sheet>
     </div>

@@ -15,10 +15,13 @@ export function model(tier: ModelTier) {
   return gateway(MODEL_IDS[tier]);
 }
 
-/** If the chosen model is unavailable, the gateway retries on the other tier's model. */
+/** Last resort if neither configured model is available on the gateway. */
+const SAFETY_NET = 'google/gemini-3.6-flash';
+
+/** If the chosen model is unavailable, the gateway retries on the other tier's model, then the safety net. */
 export function gatewayFallback(tier: ModelTier) {
   const other = tier === 'fast' ? MODEL_IDS.plan : MODEL_IDS.fast;
-  return { gateway: { models: [other] } };
+  return { gateway: { models: [other, SAFETY_NET] } };
 }
 
 /** One-shot text call for the simple tutors and generators. */

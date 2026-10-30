@@ -21,7 +21,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-export function FinancePanel({ refreshKey, ask }: PanelProps) {
+export function FinancePanel({ refreshKey, draft }: PanelProps) {
   const [data, setData] = useState<{ summary: FinanceSummary; rules: Rules } | null>(null);
   const [err, setErr] = useState(false);
 
@@ -55,7 +55,7 @@ export function FinancePanel({ refreshKey, ask }: PanelProps) {
           <Stat label={`Tax set-aside (${rules.finance.tax_set_aside_pct}%)`} value={gbp(m.taxSetAside)} sub={`${gbp(m.afterTax)} after tax`} />
         </div>
         {rate == null && (
-          <button type="button" onClick={() => ask("I know my per-drop rate now, let's set it.")} className="mt-2 text-left text-xs text-amber-300 underline">
+          <button type="button" onClick={() => draft('My per-drop rate is £')} className="mt-2 text-left text-xs text-amber-300 underline">
             Per-drop rate not set, so drops can&apos;t be priced yet. Set it
           </button>
         )}
@@ -69,7 +69,7 @@ export function FinancePanel({ refreshKey, ask }: PanelProps) {
             <button
               key={s.id}
               type="button"
-              onClick={() => ask(`Log my shift on ${short(s.date)}: `)}
+              onClick={() => draft(`Log my shift on ${short(s.date)} (${s.start}-${s.end}): drops `)}
               className="flex w-full items-center justify-between py-1.5 text-left text-sm hover:text-foreground"
             >
               <span>{short(s.date)}</span>

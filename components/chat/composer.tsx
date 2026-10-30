@@ -10,14 +10,25 @@ export function Composer({
   onStop,
   busy,
   placeholder,
+  seed,
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
   busy: boolean;
   placeholder: string;
+  /** Pre-fills the box (e.g. "Log my shift on Thu: ") for the user to finish. */
+  seed?: { text: string; n: number };
 }) {
   const [text, setText] = useState('');
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!seed) return;
+    setText(seed.text);
+    const el = ref.current;
+    el?.focus();
+    el?.setSelectionRange(seed.text.length, seed.text.length);
+  }, [seed]);
   const dictation = useDictation((phrase) => setText((t) => (t ? `${t.trimEnd()} ${phrase}` : phrase)));
 
   useEffect(() => {
@@ -41,6 +52,7 @@ export function Composer({
         ref={ref}
         rows={1}
         value={dictation.interim ? `${text}${text ? ' ' : ''}${dictation.interim}` : text}
+        readOnly={dictation.listening}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {

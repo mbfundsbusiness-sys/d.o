@@ -89,4 +89,14 @@ describe('planner', () => {
     const gaps = freeGaps(d, DEFAULT_RULES);
     expect(gaps.every((g) => g.start >= 15 * 60 || g.end <= 7 * 60)).toBe(true);
   });
+
+  it('re-plans work whose block was missed', () => {
+    const missed = { id: 'm', user_id: 'u', plan_date: TUE, start_time: '10:00', end_time: '11:00', title: 'BotCouncil', kind: 'botcouncil' as const,
+      status: 'planned' as const, source: 'ea' as const, todo_id: null, note: null, done_at: null, created_at: '', updated_at: '' };
+    const d = day(TUE, DEFAULT_RULES, { plan: [missed] });
+    const later = planDay({ day: d, rules: DEFAULT_RULES, todos: [], gymSessionsThisWeek: 0, fromMin: 12 * 60 });
+    expect(later.items.some((i) => i.kind === 'botcouncil')).toBe(true);
+    const before = planDay({ day: d, rules: DEFAULT_RULES, todos: [], gymSessionsThisWeek: 0, fromMin: 9 * 60 });
+    expect(before.items.some((i) => i.kind === 'botcouncil')).toBe(false);
+  });
 });
